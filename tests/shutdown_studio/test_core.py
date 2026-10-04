@@ -17,7 +17,7 @@ class WorkflowTests(unittest.TestCase):
         self.card=self.root/'card';self.card.mkdir()
         (self.card/'DCIM').mkdir();(self.card/'DCIM/photo.jpg').write_bytes(b'photo-is-not-a-task-file')
         self.patch=patch('apps.gr_shutdown_studio.core.validate_card');self.patch.start()
-        self.session=Session.create(self.root/'session','FAMILY')
+        self.session=Session.create(self.root/'session','FAMILY','1.11')
         source=io.BytesIO();Image.new('RGB',(720,480),'navy').save(source,format='JPEG')
         self.original=pad_jpeg(source.getvalue(),12000)
         self.artwork=self.root/'input.png';Image.new('RGB',(1600,900),'orange').save(self.artwork)
@@ -110,7 +110,7 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(WorkflowError):self.session.verify_backup(self.card)
         self.assertFalse((self.root/'session/original.jpg').exists())
     def test_urban_rejects_unverified_original(self):
-        other=Session.create(self.root/'urban','URBAN')
+        other=Session.create(self.root/'urban','URBAN','1.60')
         other.begin_backup(self.card)
         (self.card/'GBCOPY.TXT').write_bytes((self.card/'GBPROBE.TXT').read_bytes())
         other.verify_preflight(self.card)
@@ -135,7 +135,7 @@ class WorkflowTests(unittest.TestCase):
     def test_urban_two_stage_flow_with_synthetic_profile(self):
         # Synthetic JPEG data exercises the app's phase gates, not Urban camera decoding.
         from apps.gr_shutdown_studio import core
-        other=Session.create(self.root/'urban-flow','URBAN')
+        other=Session.create(self.root/'urban-flow','URBAN','1.60')
         candidate=pad_jpeg(self.artwork_to_jpeg(),12000)
         def encode(original,artwork,output):output.write_bytes(candidate)
         with patch.object(core.urban,'SIZE',12000), patch.object(core.urban,'OLD_HASH',sha(self.original)), \
@@ -163,6 +163,15 @@ class WorkflowTests(unittest.TestCase):
             (self.card/'URBLOG9.TXT').write_text('started\n1\nerror\n0\ncompleted\n1\nrestored\n0\nattempted\n1\n')
             other.verify_install(self.card);other.finish(self.card)
             other.begin_restore(self.card)
+            self.assertEqual(other.state,'wait_restore_check')
+            self.assertNotIn(b"'B:\\Resource\\Jpeg\\GB_Urban.jpg'\r\n",(self.card/'script/startup.ttl').read_bytes())
+            (self.card/'URBRBCHK.JPG').write_bytes(b'wrong')
+            (self.card/'URBTGCHK.JPG').write_bytes(candidate)
+            with self.assertRaises(WorkflowError):other.verify_restore_check(self.card)
+            self.assertEqual(other.state,'wait_restore_check')
+            (self.card/'URBRBCHK.JPG').write_bytes(self.original)
+            other.verify_restore_check(self.card)
+            self.assertEqual(other.state,'wait_restore')
             (self.card/'URBREST.JPG').write_bytes(self.original)
             other.verify_restore(self.card)
             self.assertEqual(other.state,'restored')
@@ -178,6 +187,72 @@ class WorkflowTests(unittest.TestCase):
     def test_session_cannot_be_saved_on_a_macos_sd_volume(self):
         if sys.platform != 'darwin':self.skipTest('macOS-specific volume-root check.')
         with patch('apps.gr_shutdown_studio.core.sys.platform','darwin'):
-            with self.assertRaises(WorkflowError):Session.create(Path('/Volumes/SDCARD/new-session'),'FAMILY')
+            with self.assertRaises(WorkflowError):Session.create(Path('/Volumes/SDCARD/new-session'),'FAMILY','1.11')
+
+
+
+class CommunityBackupTests(unittest.TestCase):
+    setUp = WorkflowTests.setUp
+    tearDown = WorkflowTests.tearDown
+    backup = WorkflowTests.backup
+    # Reuse the simulated SD workflow; never write a real volume.
+    def test_recovery_copy_is_verified_and_not_overwritten(self):
+        self.backup()
+        recovery=self.session.directory/'recovery/original.jpg'
+        self.assertEqual(recovery.read_bytes(),self.original)
+        recovery.write_bytes(b'altered recovery')
+        with self.assertRaises(WorkflowError):self.session.prepare(self.artwork)
+        self.assertEqual(recovery.read_bytes(),b'altered recovery')
+        self.assertEqual((self.session.directory/'original.jpg').read_bytes(),self.original)
+        self.assertFalse((self.session.directory/'package').exists())
+
+    def test_corrupt_primary_keeps_verified_recovery_bytes(self):
+        self.backup()
+        (self.session.directory/'original.jpg').write_bytes(b'altered primary')
+        with self.assertRaises(WorkflowError):self.session.begin_restore(self.card)
+        self.assertEqual((self.session.directory/'recovery/original.jpg').read_bytes(),self.original)
+        self.assertFalse((self.card/'script/startup.ttl').exists())
+
+    def test_unknown_firmware_keeps_backups_and_blocks_internal_writes(self):
+        self.session.data['firmware']='1.10'
+        self.backup()
+        with self.assertRaises(WorkflowError):self.session.prepare(self.artwork)
+        with self.assertRaises(WorkflowError):self.session.begin_restore(self.card)
+        self.assertEqual(self.session.state,'backed_up')
+        self.assertFalse((self.card/'script/startup.ttl').exists())
+        self.assertEqual((self.session.directory/'original.jpg').read_bytes(),self.original)
+        self.assertEqual((self.session.directory/'recovery/original.jpg').read_bytes(),self.original)
+
+    def test_urban_unknown_version_is_refused_before_card_changes(self):
+        other=Session.create(self.root/'unknown-urban','URBAN','1.50')
+        before=sorted(str(p.relative_to(self.card)) for p in self.card.rglob('*'))
+        with self.assertRaises(WorkflowError):other.begin_backup(self.card)
+        self.assertEqual(before,sorted(str(p.relative_to(self.card)) for p in self.card.rglob('*')))
+        self.assertEqual(other.state,'new')
+
+    def test_legacy_record_migrates_only_after_validating_original(self):
+        self.backup()
+        self.session.data.pop('firmware');self.session.save()
+        with self.assertRaises(WorkflowError):self.session.prepare(self.artwork)
+        self.session.set_firmware('1.11')
+        self.session.prepare(self.artwork)
+        self.assertEqual(self.session.state,'prepared')
+        with self.assertRaises(WorkflowError):self.session.set_firmware('1.12')
+
+    def test_report_omits_private_assets_and_preserves_previous_report(self):
+        self.backup()
+        destination=self.root/'test-report.json'
+        self.session.export_test_report(destination)
+        data=json.loads(destination.read_text())
+        self.assertEqual(data['original_sha256'],sha(self.original))
+        self.assertEqual(data['firmware'],'1.11')
+        self.assertNotIn(self.session.data['id'],destination.read_text())
+        self.assertNotIn(str(self.root),destination.read_text())
+        self.assertNotIn('image',data)
+        self.assertFalse(data['camera_display_confirmed_by_user'])
+        self.assertFalse(data['full_app_camera_qualified'])
+        before=destination.read_bytes()
+        with self.assertRaises(WorkflowError):self.session.export_test_report(destination)
+        self.assertEqual(destination.read_bytes(),before)
 
 if __name__=='__main__':unittest.main()

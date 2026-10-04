@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import re
 from pathlib import Path
 
 from PIL import Image
@@ -11,9 +12,11 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QLineEdit, QFileDialog, QMessageBox,
     QCheckBox, QFrame, QSlider, QDialog, QProgressBar, QRadioButton,
-    QButtonGroup, QScrollArea, QSizePolicy,
+    QButtonGroup, QScrollArea, QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView, QInputDialog,
 )
 from .core import Session, render_image, WorkflowError
+from .compatibility import PROFILES, installation_allowed
+from . import __version__
 
 TEXT = {
  'title': ('GR Shutdown Studio', 'GR Shutdown Studio'),
@@ -59,10 +62,19 @@ TEXT = {
  'instructions': ('Next step', '下一步'),
  'setup_help': ('Copy the generated entry files to the card using Prepare card check. Hold MENU while powering on to enter the factory menu; enable only Script. Then start normally once, wait for storage activity to stop, shut down, and reconnect the card.', '点“准备 SD 卡检查”会写入入口文件。按住 MENU 开机进入工厂菜单，仅开启 Script。随后正常开机一次，等读写结束再关机，把卡接回电脑。'),
  'session_help': ('Save one session folder per camera on your computer. Reopen it to continue or restore later. Never put your only backup on the SD card.', '为每台相机在电脑上保存独立的操作记录。下次可打开记录继续或恢复，原图备份不要只留在 SD 卡上。'),
- 'support': ('GR IV-family selection is automatic after backup. Urban support is limited to 1.60 and its verified original. The app does not format cards or flash firmware.', '备份后自动识别 GR IV 系列机型。Urban 仅支持 1.60 及已验证的原图。App 不格式化卡，不刷写固件。'),
+ 'support': ('Preview installation: GR IV / HDF 1.11 and Urban 1.60. Other combinations need validation. Keep the original backup on your computer.', '预览版安装流程：GR IV / HDF 1.11、Urban 1.60。其他组合尚待验证。请保留电脑上的原图备份。'),
  'leave_busy': ('Wait for the current operation to finish before closing.', '请等当前操作结束再关闭。'),
 }
 TEXT.update({
+ 'firmware': ('Firmware shown in camera menu', '相机菜单中的固件版本'),
+ 'firmware_hint': ('For example 1.11. Keep this body and firmware unchanged throughout the session.', '例如 1.11。操作期间保持同一台机身及固件版本。'),
+ 'firmware_missing': ('Record firmware…', '记录固件版本…'),
+ 'test_report': ('Save test report…', '保存测试报告…'),
+ 'compatibility': ('Camera support / 兼容机型', 'Camera support / 兼容机型'),
+ 'pending': ('Pending validation', '待验证'),
+ 'experimental': ('Preview workflow', '预览版流程'),
+ 'blocked_profile': ('Backup kept. This model/firmware needs validation before installation. Save a test report to help extend support.', '原图备份已保存。此机型与固件组合尚待验证，安装已关闭。可保存测试报告，协助补充兼容性证据。'),
+
  'subtitle': ('Custom shutdown images for Ricoh GR', 'Ricoh GR 关机画面工具'),
  'backup': ('Back up original', '备份原图'), 'design': ('Choose image', '选择画面'),
  'verify': ('Install & verify', '安装校验'),
@@ -85,7 +97,7 @@ TEXT.update({
  'return_card': ('After the camera steps, reconnect the card to verify.', '完成相机操作后，把 SD 卡接回电脑校验。'),
  'ready_card': ('Reconnect the same SD card before continuing.', '继续前，请将同一张 SD 卡接回电脑。'),
  'setup_title': ('Back up your original first', '先备份相机里的原图'),
- 'setup_subtitle': ('Keep the original so you can restore it later.', '将原图留在电脑上，之后随时可以恢复。'),
+ 'setup_subtitle': ('Save the original before checking installation support.', '先将原图保存到电脑，再检查是否支持安装。'),
  'new_title': ('Prepare the SD card check', '准备 SD 卡检查'),
  'new_subtitle': ('First, check that the camera can run the card script.', '先确认相机能够执行卡上的脚本，再备份原图。'),
  'wait_preflight_title': ('Run the check on your camera', '在相机上执行检查'),
@@ -98,6 +110,8 @@ TEXT.update({
  'wait_install_title': ('Install on your camera', '在相机上安装画面'),
  'verified_title': ('Confirm the shutdown screen', '确认相机上的关机画面'),
  'verified_subtitle': ('The readback matches. Finish the final check on your camera.', '读回内容一致。请完成最后的实机显示检查。'),
+ 'wait_restore_check_title': ('Check the internal restore source', '先核对相机里的原图备份'),
+ 'check_restore_source': ('Verify backup & prepare restoration', '核对备份并准备恢复'),
  'wait_restore_title': ('Restore on your camera', '在相机上恢复原图'),
  'restored_title': ('Confirm the restored screen', '确认恢复后的画面'),
  'restored_subtitle': ('The readback matches your saved original.', '读回内容与保存的原图一致。'),
@@ -152,7 +166,13 @@ CAMERA_STEPS = {
  ],
 }
 
+CAMERA_STEPS['wait_restore_check'] = [
+    ('Safely eject the card and insert it into the same camera.', '安全弹出卡，插回同一台相机。'),
+    ('Power on normally once to export the backup. This step does not restore yet.', '正常开机一次，读出机内备份。此时尚未执行恢复。'),
+    ('Wait for card activity to stop, power off and reconnect. The app checks the entire backup before preparing restoration.', '等读写结束后关机，把卡接回电脑。完整备份核对通过后才会准备恢复。'),
+]
 STATES = {
+ 'wait_restore_check': ('Export and verify the internal original before restoration.', '先读出并核对机内原图备份，再准备恢复。'),
  'new': ('Create a computer backup session, then prepare a small SD copy check.', '新建电脑端记录，再准备一次小文件 SD 复制检查。'),
  'wait_preflight': ('Safely eject the card. Hold MENU while powering on, enable only Script, then shut down. Start normally once to run the check. When storage activity stops, shut down and reconnect the card.', '安全弹出卡。按住 MENU 开机，在工厂菜单仅开启 Script 后关机。再正常开机执行检查，等读写结束后关机，把卡接回电脑。'),
  'wait_backup': ('Run the backup script once on the same camera. Reconnect the card to save and inspect the original.', '在同一台相机上运行一次备份脚本，关机后接回卡，保存并查看原图。'),
@@ -358,7 +378,12 @@ class Studio(QMainWindow):
         side.addWidget(self.new_button)
         self.open_button = self.button('open', self.open_session)
         side.addWidget(self.open_button)
+        self.firmware_button = self.button('firmware_missing', self.record_firmware)
+        side.addWidget(self.firmware_button)
+        self.report_button = self.button('test_report', self.export_report)
+        side.addWidget(self.report_button)
         side.addSpacing(8)
+        side.addWidget(self.button('compatibility', self.show_compatibility))
         self.settings_button = QPushButton('Settings / 设置')
         self.settings_button.clicked.connect(self.show_settings)
         side.addWidget(self.settings_button)
@@ -401,6 +426,13 @@ class Studio(QMainWindow):
         self.label(camera_layout, 'camera', 'section')
         self.camera = Choice(['family', 'urban'], self.t, vertical=True)
         camera_layout.addWidget(self.camera)
+        self.label(camera_layout, 'firmware', 'section')
+        self.firmware_input = QLineEdit()
+        self.firmware_input.setPlaceholderText('1.11 / 1.60')
+        self.firmware_input.setMaximumWidth(180)
+        self.firmware_input.textChanged.connect(self.update_action)
+        camera_layout.addWidget(self.firmware_input)
+        self.label(camera_layout, 'firmware_hint', 'hint')
         setup.addWidget(self.camera_panel)
         self.backup_panel = QFrame()
         self.backup_panel.setObjectName('panel')
@@ -633,6 +665,53 @@ class Studio(QMainWindow):
         save.clicked.connect(apply)
         dialog.exec()
 
+    def show_compatibility(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.t('compatibility'))
+        dialog.resize(900, 520)
+        layout = QVBoxLayout(dialog)
+        note = QLabel('Preview workflows need camera testing. Empty firmware entries are not installation support.' if self.language == 'en' else '预览版流程尚待整套实机测试。未记录固件版本的机型不开放安装。')
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        table = QTableWidget(len(PROFILES), 3)
+        table.setHorizontalHeaderLabels(['Camera', 'Evidence firmware', 'Status'] if self.language == 'en' else ['机型', '已有证据的固件', '状态'])
+        table.verticalHeader().hide()
+        table.setEditTriggers(QTableWidget.NoEditTriggers)
+        table.setSelectionBehavior(QTableWidget.SelectRows)
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        for row, profile in enumerate(PROFILES):
+            cells = [profile.name, ', '.join(profile.tested_versions) or '—', self.t('experimental' if profile.tested_versions else 'pending')]
+            for column, text in enumerate(cells):
+                item = QTableWidgetItem(text)
+                item.setToolTip(profile.evidence)
+                table.setItem(row, column, item)
+        layout.addWidget(table)
+        close = QPushButton('OK')
+        close.clicked.connect(dialog.accept)
+        layout.addWidget(close, alignment=Qt.AlignRight)
+        dialog.exec()
+
+    def record_firmware(self):
+        if not self.session:
+            return
+        version, accepted = QInputDialog.getText(self, self.t('firmware'), self.t('firmware_hint'))
+        if accepted:
+            try:
+                self.session.set_firmware(version.strip())
+                self.refresh()
+            except Exception as error:
+                self.error(str(error))
+
+    def export_report(self):
+        if not self.session:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, self.t('test_report'), str(self.session.directory / 'test-report.json'), 'JSON (*.json)')
+        if path:
+            try:
+                self.session.export_test_report(Path(path))
+            except Exception as error:
+                self.error(str(error))
+
     def show_original(self):
         if not self.session:
             return
@@ -679,12 +758,16 @@ class Studio(QMainWindow):
             self.error(str(error))
 
     def new_session(self):
+        version = self.firmware_input.text().strip()
+        if not re.fullmatch(r'\d{1,2}\.\d{2}', version):
+            self.error(self.t('firmware_hint'))
+            return
         parent=QFileDialog.getExistingDirectory(self,self.t('session'),str(Path.home()/'Documents'))
         if not parent:return
         from datetime import datetime
         name='GR-Shutdown-'+datetime.now().strftime('%Y%m%d-%H%M%S')
         try:
-            self.session=Session.create(Path(parent)/name,'FAMILY' if self.camera.currentIndex()==0 else 'URBAN')
+            self.session=Session.create(Path(parent)/name,'FAMILY' if self.camera.currentIndex()==0 else 'URBAN', version)
             self.image=None;self.image_name.setText('—')
             self.ack.setChecked(False);self.display.setChecked(False);self.refresh()
         except Exception as error:self.error(str(error))
@@ -721,7 +804,7 @@ class Studio(QMainWindow):
     def failed(self,message):self.refresh();self.error(message)
 
     def busy(self,value):
-        for widget in [self.action,self.restore_button,self.new_button,self.open_button,self.settings_button,self.camera,self.mode,self.horizontal,self.vertical,self.ack,self.display,self.image_button,self.card_button,self.original_button,self.folder_button]:widget.setEnabled(not value)
+        for widget in [self.action,self.restore_button,self.new_button,self.open_button,self.settings_button,self.camera,self.mode,self.horizontal,self.vertical,self.ack,self.display,self.image_button,self.card_button,self.original_button,self.folder_button,self.firmware_button,self.report_button,self.firmware_input]:widget.setEnabled(not value)
         self.progress.setVisible(value)
         if value:self.instruction.setText(self.t('working'))
         else:self.refresh()
@@ -745,7 +828,7 @@ class Studio(QMainWindow):
             operations={'new':self.session.begin_backup,'wait_preflight':self.session.verify_preflight,
                         'wait_backup':self.session.verify_backup,'prepared':self.session.begin_install,
                         'wait_stage1':self.session.verify_stage1,'wait_install':self.session.verify_install,
-                        'wait_restore':self.session.verify_restore,'verified':self.session.finish,'restored':self.session.finish}
+                        'wait_restore_check':self.session.verify_restore_check,'wait_restore':self.session.verify_restore,'verified':self.session.finish,'restored':self.session.finish}
             if state in operations:self.run(lambda:operations[state](card))
         except Exception as error:self.error(str(error))
 
@@ -775,7 +858,11 @@ class Studio(QMainWindow):
         busy = bool(self.worker and self.worker.isRunning())
         state = self.session.state if self.session else 'new'
         enabled = not busy and state not in ('complete', 'deployment_incomplete')
+        if not self.session:
+            enabled = enabled and bool(re.fullmatch(r'\d{1,2}\.\d{2}', self.firmware_input.text().strip()))
         if self.session:
+            if state in ('backed_up', 'prepared', 'wait_stage1'):
+                enabled = enabled and installation_allowed(self.session.data['kind'], self.session.data.get('model'), self.session.data.get('firmware'))
             if state == 'backed_up':
                 enabled = enabled and bool(self.image)
             else:
@@ -831,6 +918,9 @@ class Studio(QMainWindow):
         self.display.setVisible(state in ('verified', 'restored'))
         self.position_panel.setVisible(self.mode.currentIndex() == 0)
         self.camera.setEnabled(not bool(self.session))
+        self.firmware_input.setEnabled(not bool(self.session))
+        self.firmware_button.setVisible(bool(self.session) and not self.session.data.get('firmware'))
+        self.report_button.setVisible(bool(self.session))
         self.mode.setEnabled(state == 'backed_up')
         self.horizontal.setEnabled(state == 'backed_up')
         self.vertical.setEnabled(state == 'backed_up')
@@ -839,13 +929,13 @@ class Studio(QMainWindow):
         self.folder_button.setEnabled(bool(self.session))
         self.session_label.setVisible(bool(self.session))
         self.restore_button.setVisible(bool(self.session) and state in ('backed_up', 'prepared', 'wait_stage1', 'wait_install', 'verified', 'complete'))
-        self.restore_button.setEnabled(bool(self.session) and state in ('backed_up', 'prepared', 'wait_stage1', 'wait_install', 'verified', 'complete'))
+        self.restore_button.setEnabled(bool(self.session) and state in ('backed_up', 'prepared', 'wait_stage1', 'wait_install', 'verified', 'complete') and installation_allowed(self.session.data['kind'], self.session.data.get('model'), self.session.data.get('firmware')))
         self.original_button.setVisible(bool(self.session) and 'original_sha256' in self.session.data and state != 'complete')
         restored = bool(self.session and (self.session.state == 'complete' and self.session.data.get('last_result') == 'restored'))
         self.preview_caption.setText(self.t('original_preview' if restored else 'preview'))
         actions = {'new':'setup', 'wait_preflight':'check_preflight', 'wait_backup':'check_backup',
                    'backed_up':'prepare', 'prepared':'install', 'wait_stage1':'check_stage1',
-                   'wait_install':'check_install', 'wait_restore':'check_restore',
+                   'wait_install':'check_install', 'wait_restore_check':'check_restore_source', 'wait_restore':'check_restore',
                    'verified':'finish', 'restored':'finish', 'complete':'finish', 'deployment_incomplete':'setup'}
         self.action.setText(self.t(actions.get(state, 'setup')) if self.session else self.t('start'))
         self.action.setVisible(state != 'complete')
@@ -866,6 +956,8 @@ class Studio(QMainWindow):
                  'complete':'session_help_short', 'deployment_incomplete':'deployment_incomplete_subtitle'}
         self.instruction.setText(self.t(hints.get(state, 'return_card' if waiting else 'ready_card')))
         self.instruction.setVisible(bool(self.session))
+        if self.session and state in ('backed_up', 'prepared') and not installation_allowed(self.session.data['kind'], self.session.data.get('model'), self.session.data.get('firmware')):
+            self.description.setText(self.t('blocked_profile'))
         self.preview()
         self.update_action()
 
@@ -878,6 +970,7 @@ class Studio(QMainWindow):
 def main():
     application=QApplication(sys.argv)
     application.setApplicationName('GR Shutdown Studio')
+    application.setApplicationVersion(__version__)
     window=Studio();window.show()
     sys.exit(application.exec())
 
