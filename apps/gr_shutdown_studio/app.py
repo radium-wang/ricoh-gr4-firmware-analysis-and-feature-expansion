@@ -6,10 +6,10 @@ import re
 from pathlib import Path
 
 from PIL import Image
-from PySide6.QtCore import Qt, QThread, Signal, QSettings, QUrl
+from PySide6.QtCore import Qt, QThread, Signal, QSettings, QUrl, QSize
 from PySide6.QtGui import QDesktopServices, QPixmap, QImage, QPalette
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QToolButton,
     QLabel, QPushButton, QLineEdit, QFileDialog, QMessageBox,
     QCheckBox, QFrame, QSlider, QDialog, QProgressBar, QRadioButton,
     QButtonGroup, QScrollArea, QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView, QInputDialog,
@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 from .core import Session, render_image, WorkflowError
 from .compatibility import PROFILES, installation_allowed
 from . import __version__
+from .icons import sidebar_icon
 
 TEXT = {
  'title': ('GR Shutdown Studio', 'GR Shutdown Studio'),
@@ -70,7 +71,8 @@ TEXT.update({
  'firmware_hint': ('For example 1.11. Keep this body and firmware unchanged throughout the session.', '例如 1.11。操作期间保持同一台机身及固件版本。'),
  'firmware_missing': ('Record firmware…', '记录固件版本…'),
  'test_report': ('Save test report…', '保存测试报告…'),
- 'compatibility': ('Camera support / 兼容机型', 'Camera support / 兼容机型'),
+ 'compatibility': ('Camera support', '兼容机型'),
+ 'settings': ('Settings / 设置', 'Settings / 设置'),
  'pending': ('Pending validation', '待验证'),
  'experimental': ('Preview workflow', '预览版流程'),
  'blocked_profile': ('Backup kept. This model/firmware needs validation before installation. Save a test report to help extend support.', '原图备份已保存。此机型与固件组合尚待验证，安装已关闭。可保存测试报告，协助补充兼容性证据。'),
@@ -325,6 +327,19 @@ class Studio(QMainWindow):
         button.clicked.connect(callback)
         return button
 
+    def sidebar_button(self, key, callback, icon):
+        button = QToolButton()
+        button.setObjectName('sidebar_action')
+        button.setProperty('text_key', key)
+        button.setAutoRaise(True)
+        button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        button.setIcon(sidebar_icon(icon))
+        button.setIconSize(QSize(17, 17))
+        button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        button.setFixedHeight(32)
+        button.clicked.connect(callback)
+        return button
+
     def build(self):
         root = QWidget()
         self.setCentralWidget(root)
@@ -368,25 +383,30 @@ class Studio(QMainWindow):
             self.steps.append((frame, number, status))
             side.addWidget(frame)
         side.addStretch()
+        tools = QWidget()
+        tools_layout = QVBoxLayout(tools)
+        tools_layout.setContentsMargins(0, 0, 0, 0)
+        tools_layout.setSpacing(2)
         self.session_label = QLabel()
         self.session_label.setObjectName('hint')
         self.session_label.setWordWrap(True)
-        side.addWidget(self.session_label)
-        self.folder_button = self.button('folder', self.show_folder)
-        side.addWidget(self.folder_button)
-        self.new_button = self.button('new', self.new_session)
-        side.addWidget(self.new_button)
-        self.open_button = self.button('open', self.open_session)
-        side.addWidget(self.open_button)
-        self.firmware_button = self.button('firmware_missing', self.record_firmware)
-        side.addWidget(self.firmware_button)
-        self.report_button = self.button('test_report', self.export_report)
-        side.addWidget(self.report_button)
-        side.addSpacing(8)
-        side.addWidget(self.button('compatibility', self.show_compatibility))
-        self.settings_button = QPushButton('Settings / 设置')
-        self.settings_button.clicked.connect(self.show_settings)
-        side.addWidget(self.settings_button)
+        tools_layout.addWidget(self.session_label)
+        self.folder_button = self.sidebar_button('folder', self.show_folder, 'folder')
+        tools_layout.addWidget(self.folder_button)
+        self.new_button = self.sidebar_button('new', self.new_session, 'new')
+        tools_layout.addWidget(self.new_button)
+        self.open_button = self.sidebar_button('open', self.open_session, 'document')
+        tools_layout.addWidget(self.open_button)
+        self.firmware_button = self.sidebar_button('firmware_missing', self.record_firmware, 'edit')
+        tools_layout.addWidget(self.firmware_button)
+        self.report_button = self.sidebar_button('test_report', self.export_report, 'document')
+        tools_layout.addWidget(self.report_button)
+        tools_layout.addSpacing(8)
+        tools_layout.addWidget(self.sidebar_button('compatibility', self.show_compatibility, 'camera'))
+        self.settings_button = self.sidebar_button('settings', self.show_settings, 'settings')
+        self.settings_button.setText('Settings / 设置')
+        tools_layout.addWidget(self.settings_button)
+        side.addWidget(tools)
         self.label(side, 'beta', 'hint')
         outer.addWidget(sidebar)
 
@@ -532,8 +552,8 @@ class Studio(QMainWindow):
         self.badge.setObjectName('hint')
         self.badge.setWordWrap(True)
         self.badge.hide()
-        self.original_button = self.button('review_backup', self.show_original)
-        side.insertWidget(side.indexOf(self.folder_button) + 1, self.original_button)
+        self.original_button = self.sidebar_button('review_backup', self.show_original, 'image')
+        tools_layout.insertWidget(tools_layout.indexOf(self.folder_button) + 1, self.original_button)
         body.insertWidget(0, self.preview_panel)
 
         self.card_panel = QWidget()
@@ -608,6 +628,11 @@ class Studio(QMainWindow):
             QLabel#eyebrow {{ color:{secondary}; font-size:11px; font-weight:600; }}
             QLabel#section, QLabel#step_title {{ font-weight:600; }}
             QLabel#hint, QLabel#step_status {{ color:{secondary}; font-size:12px; }}
+            QToolButton#sidebar_action {{ border:0; border-radius:6px; padding:4px 8px;
+                                        text-align:left; font-size:12px; }}
+            QToolButton#sidebar_action:hover {{ background:{surface}; }}
+            QToolButton#sidebar_action:pressed {{ background:{selected}; }}
+            QToolButton#sidebar_action:focus {{ border:1px solid {border}; }}
             QFrame#step {{ border-radius:8px; }}
             QFrame#step[active="true"] {{ background:{selected}; }}
             QLabel#step_number, QLabel#task_number {{ border:1px solid {border}; border-radius:12px; }}
