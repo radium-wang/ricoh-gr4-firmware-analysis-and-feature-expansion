@@ -8,6 +8,7 @@ on:
       - 'tools/gr4_shutdown.py'
       - 'tools/gr3x_urban_*.py'
       - 'tools/gr4_model.py'
+      - 'tools/audit_shutdown_compatibility.py'
       - 'tools/pad_jpeg.py'
       - 'tools/create_factory_entry.py'
       - 'examples/*family*'

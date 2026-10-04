@@ -6,6 +6,7 @@ import io
 import json
 import os
 import plistlib
+import re
 import shutil
 import subprocess
 import sys
@@ -13,6 +14,8 @@ import uuid
 from pathlib import Path
 
 from PIL import Image, ImageOps
+from . import __version__
+from .compatibility import installation_allowed, profile_for
 
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parents[2]))
 # Existing CLI tools use sibling imports; keep their original implementations.
@@ -150,7 +153,7 @@ class Session:
             raise WorkflowError('Unknown camera workflow.')
 
     @classmethod
-    def create(cls, directory: Path, kind: str):
+    def create(cls, directory: Path, kind: str, firmware: str | None = None):
         if kind not in ('FAMILY', 'URBAN'):
             raise WorkflowError('Unknown camera workflow.')
         if directory.exists():
@@ -167,7 +170,8 @@ class Session:
                 raise WorkflowError('Save the session on a local computer drive.')
         directory.mkdir(parents=True)
         data = {'format': 'gr-shutdown-studio-v1', 'id': str(uuid.uuid4()),
-                'kind': kind, 'state': 'new', 'managed': {}, 'attempt': 0}
+                'kind': kind, 'state': 'new', 'managed': {}, 'attempt': 0,
+                'firmware': firmware, 'firmware_source': 'user_camera_menu'}
         atomic(directory / 'session.json', json.dumps(data, indent=2).encode())
         return cls(directory)
 
@@ -233,6 +237,8 @@ class Session:
 
     def begin_backup(self, card: Path):
         self.require('new')
+        if self.data['kind'] == 'URBAN' and self.data.get('firmware') != '1.60':
+            raise WorkflowError('Urban requires firmware 1.60 as shown in the camera menu. No card files were prepared.')
         probe = f'GR-SHUTDOWN-STUDIO:{self.data["id"]}\r\n'.encode('ascii')
         script = ttl("filesearch 'C:\\GBCOPY.TXT'\nif result = 1 then\nexit\nendif\nfilecopy 'C:\\GBPROBE.TXT' 'C:\\GBCOPY.TXT'\nexit")
         files = entry.FILES if self.data['kind'] == 'FAMILY' else entry.GR3X_URBAN_160_FILES
@@ -285,23 +291,77 @@ class Session:
                 raise WorkflowError('Urban internal backup differs from the original.')
             self.archive(card, [name, 'URBOLD.JPG'])
         original = self.directory/'original.jpg'
-        if original.exists() and original.read_bytes() != data:
+        if original.exists() and read(original) != data:
             raise WorkflowError('Saved original differs. It will not be overwritten.')
         if not original.exists():
             atomic(original, data)
-        self.data.update(model=model, original_sha256=sha(data), original_size=len(data), state='backed_up')
+        self.preserve_recovery_copy(data)
+        self.data.update(model=model, original_sha256=sha(data), original_size=len(data), state='backed_up', recovery_copy='recovery/original.jpg')
         self.save()
         self.stop_script(card)
+
+    def preserve_recovery_copy(self, data):
+        directory = self.directory / 'recovery'
+        if directory.is_symlink():
+            raise WorkflowError('The recovery folder must not be a symbolic link.')
+        directory.mkdir(exist_ok=True)
+        copy = directory / 'original.jpg'
+        if copy.exists() or copy.is_symlink():
+            if read(copy) != data:
+                raise WorkflowError('Recovery copy differs. It will not be overwritten.')
+        else:
+            atomic(copy, data)
+        if read(copy) != data:
+            raise WorkflowError('The recovery copy could not be verified.')
 
     def original(self):
         data = read(self.directory/'original.jpg')
         if len(data) != self.data['original_size'] or sha(data) != self.data['original_sha256']:
-            raise WorkflowError('The computer backup changed. Stop and recover an intact backup.')
+            raise WorkflowError('The original backup changed. Keep recovery/original.jpg and recover an intact copy before continuing.')
         jpeg_check(data)
+        # Earlier sessions get a second verified copy before any camera write.
+        self.preserve_recovery_copy(data)
         return data
+
+    def require_installation_profile(self):
+        if not installation_allowed(self.data['kind'], self.data.get('model'), self.data.get('firmware')):
+            raise WorkflowError('This model/firmware combination is not qualified for installation. Keep the original backup; installation and restoration are disabled.')
+
+    def set_firmware(self, version):
+        if not isinstance(version, str) or not re.fullmatch(r'\d{1,2}\.\d{2}', version):
+            raise WorkflowError('Enter the firmware shown in the camera menu, such as 1.11 or 1.60.')
+        if self.data.get('firmware') and version != self.data['firmware']:
+            raise WorkflowError('Do not change firmware during a session. Create a new session for the same body after an update.')
+        self.data['firmware'] = version
+        self.data['firmware_source'] = 'user_camera_menu'
+        self.save()
+
+    def export_test_report(self, destination):
+        # Export hashes and workflow status only, never pictures, body identifiers,
+        # local paths, resource bytes or generated TTL with embedded artwork.
+        if self.data.get('original_sha256'):
+            self.original()
+        profile = profile_for(self.data['kind'], self.data.get('model'))
+        report = {'format': 'gr-shutdown-test-report-v1', 'app_version': __version__,
+                  'camera': profile.name if profile else self.data['kind'],
+                  'firmware': self.data.get('firmware'),
+                  'firmware_source': self.data.get('firmware_source'),
+                  'workflow_state': self.state,
+                  'original_sha256': self.data.get('original_sha256'),
+                  'original_size': self.data.get('original_size'),
+                  'candidate_sha256': self.data.get('candidate_sha256'),
+                  'last_result': self.data.get('last_result'),
+                  'installation_profile_available': installation_allowed(self.data['kind'], self.data.get('model'), self.data.get('firmware')),
+                  'camera_display_confirmed_by_user': self.state == 'complete',
+                  'full_app_camera_qualified': False}
+        destination = Path(destination)
+        if destination.exists() or destination.is_symlink():
+            raise WorkflowError('Choose a new report filename; existing reports are preserved.')
+        atomic(destination, (json.dumps(report, indent=2) + '\n').encode())
 
     def prepare(self, image: Path, mode='crop', horizontal=0.5, vertical=0.5, background='#111111'):
         self.require('backed_up')
+        self.require_installation_profile()
         self.original()
         image = render_image(image, mode, horizontal, vertical, background)
         image.save(self.directory/'artwork.png')
@@ -348,6 +408,7 @@ class Session:
 
     def begin_install(self, card: Path):
         self.require('prepared')
+        self.require_installation_profile()
         package = self.package_check()
         card = self.card(card)
         if self.data['kind'] == 'FAMILY':
@@ -369,6 +430,7 @@ class Session:
 
     def verify_stage1(self, card: Path):
         self.require('wait_stage1')
+        self.require_installation_profile()
         card=self.card(card)
         self.archive(card,['URBLOG8.TXT','URBIMG8.JPG','URBORG8.JPG','URBPRE8.JPG'])
         urban.verify(self.directory/'package/manifest.json',card,1)
@@ -394,6 +456,7 @@ class Session:
 
     def begin_restore(self, card: Path):
         self.require('backed_up','prepared','wait_stage1','wait_install','verified','complete')
+        self.require_installation_profile()
         self.original()
         card=self.card(card)
         if self.data['kind']=='FAMILY':
@@ -408,10 +471,36 @@ class Session:
             if arm.exists() and read(arm,64)==b'0':
                 self.data['managed']['GBARM.TXT']=sha(b'0')
         else:
-            if (card/'URBREST.JPG').exists():
-                raise WorkflowError('Existing URBREST.JPG: preserve and inspect it before restoring.')
-            payload={'script/startup.ttl':ttl((ROOT/'examples/gr3x-urban-restore.ttl.example').read_text())}
+            names = ['URBREST.JPG', 'URBRBCHK.JPG', 'URBTGCHK.JPG']
+            if any((card / name).exists() for name in names):
+                raise WorkflowError('Restore-check outputs already exist. Preserve and inspect them before another attempt.')
+            # Only export the internal backup and current screen at this stage.
+            # A complete host hash check must precede B: -> B: restoration.
+            lines = []
+            for name in ['URBRBCHK.JPG', 'URBTGCHK.JPG']:
+                lines += [f"getfileattr 'C:\\{name}'", 'if result <> -1 then', 'exit', 'endif']
+            for source, destination in [(urban.OLD, 'URBRBCHK.JPG'), (urban.TARGET, 'URBTGCHK.JPG')]:
+                lines += [f"filestat '{source}' size", 'if result <> 0 then', 'exit', 'endif',
+                          f"if size <> {self.data['original_size']} then", 'exit', 'endif',
+                          f"filecopy '{source}' 'C:\\{destination}'"]
+            lines.append('exit')
+            self.deploy(card, {'script/startup.ttl': ttl('\n'.join(lines))}, 'wait_restore_check')
+            return
         self.deploy(card,payload,'wait_restore')
+
+    def verify_restore_check(self, card):
+        self.require('wait_restore_check')
+        self.require_installation_profile()
+        card = self.card(card)
+        self.archive(card, ['URBRBCHK.JPG', 'URBTGCHK.JPG'])
+        original = self.original()
+        if read(card / 'URBRBCHK.JPG') != original:
+            raise WorkflowError('The internal restore source differs from your original. No restore script was prepared.')
+        if len(read(card / 'URBTGCHK.JPG')) != len(original):
+            raise WorkflowError('The current target has an unexpected size. No restore script was prepared.')
+        if (card / 'URBREST.JPG').exists():
+            raise WorkflowError('An earlier restore result exists. It will not be overwritten.')
+        self.deploy(card, {'script/startup.ttl': ttl((ROOT/'examples/gr3x-urban-restore.ttl.example').read_text())}, 'wait_restore')
 
     def verify_restore(self, card: Path):
         self.require('wait_restore')

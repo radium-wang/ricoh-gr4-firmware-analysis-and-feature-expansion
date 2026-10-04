@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication,QLabel,QDialog,QComboBox,QRadioButton
+from PySide6.QtWidgets import QApplication,QLabel,QDialog,QComboBox,QRadioButton,QTableWidget
 from apps.gr_shutdown_studio.app import Studio
 
 APP=QApplication.instance() or QApplication([])
@@ -30,10 +30,12 @@ class InterfaceTests(unittest.TestCase):
                 return 0
             with patch.object(QDialog,'exec',check):self.window.show_settings()
     def test_primary_action_requires_the_current_step_inputs(self):
+        self.assertFalse(self.window.action.isEnabled())
+        self.window.firmware_input.setText('1.11')
         self.assertTrue(self.window.action.isEnabled())
         self.assertFalse(self.window.restore_button.isEnabled())
         from apps.gr_shutdown_studio.core import Session
-        self.window.session=Session.create(Path(self.tmp.name)/'session','FAMILY')
+        self.window.session=Session.create(Path(self.tmp.name)/'session','FAMILY','1.11')
         self.window.refresh();self.assertFalse(self.window.action.isEnabled())
         self.window.card_input.setText('/test-card');self.window.ack.setChecked(True)
         self.assertTrue(self.window.action.isEnabled())
@@ -50,8 +52,8 @@ class InterfaceTests(unittest.TestCase):
         self.assertFalse(self.window.card_panel.isVisible())
         self.assertFalse(self.window.preview_panel.isVisible())
         self.assertEqual(self.window.findChildren(QComboBox),[])
-        self.window.session=Session.create(Path(self.tmp.name)/'stages','FAMILY')
-        for state in ['wait_preflight','wait_backup','wait_stage1','wait_install','wait_restore','verified','restored']:
+        self.window.session=Session.create(Path(self.tmp.name)/'stages','FAMILY','1.11')
+        for state in ['wait_preflight','wait_backup','wait_stage1','wait_install','wait_restore','wait_restore_check','verified','restored']:
             self.window.session.data['state']=state;self.window.refresh();APP.processEvents()
             self.assertIs(self.window.pages.currentWidget(),self.window.camera_page)
             self.assertTrue(self.window.card_panel.isVisible())
@@ -73,9 +75,9 @@ class InterfaceTests(unittest.TestCase):
 
     def test_design_and_finish_require_photo_and_confirmation(self):
         from apps.gr_shutdown_studio.core import Session
-        self.window.session=Session.create(Path(self.tmp.name)/'gates','FAMILY')
+        self.window.session=Session.create(Path(self.tmp.name)/'gates','FAMILY','1.11')
         self.window.card_input.setText('/test-card')
-        self.window.session.data['state']='backed_up';self.window.refresh()
+        self.window.session.data.update(state='backed_up',model='HDF');self.window.refresh()
         self.assertFalse(self.window.action.isEnabled())
         self.window.image=Path('/selected-image.jpg');self.window.update_action()
         self.assertTrue(self.window.action.isEnabled())
@@ -89,9 +91,9 @@ class InterfaceTests(unittest.TestCase):
     def test_design_does_not_present_original_as_the_selected_photo(self):
         from PIL import Image
         from apps.gr_shutdown_studio.core import Session
-        self.window.session=Session.create(Path(self.tmp.name)/'design','FAMILY')
+        self.window.session=Session.create(Path(self.tmp.name)/'design','FAMILY','1.11')
         Image.new('RGB',(720,480),'navy').save(self.window.session.directory/'original.jpg')
-        self.window.session.data['state']='backed_up';self.window.refresh()
+        self.window.session.data.update(state='backed_up',model='HDF');self.window.refresh()
         self.assertEqual(self.window.preview_label.text(),self.window.t('empty_preview'))
         photo=self.window.session.directory/'photo.jpg'
         Image.new('RGB',(720,480),'orange').save(photo)
@@ -100,10 +102,30 @@ class InterfaceTests(unittest.TestCase):
         self.assertGreater(self.window.preview_label.pixmap().toImage().pixelColor(10,10).red(),240)
 
 
+    def test_compatibility_lists_pending_editions_without_enabling_them(self):
+        def inspect(dialog):
+            table=dialog.findChild(QTableWidget)
+            self.assertEqual(table.rowCount(),10)
+            self.assertEqual(table.item(0,0).text(),'GR III')
+            self.assertEqual(table.item(0,2).text(),self.window.t('pending'))
+            return 0
+        with patch.object(QDialog,'exec',inspect):self.window.show_compatibility()
+
+    def test_unqualified_version_has_no_install_or_restore_action(self):
+        from apps.gr_shutdown_studio.core import Session
+        self.window.session=Session.create(Path(self.tmp.name)/'unqualified','FAMILY','1.10')
+        self.window.session.data.update(state='backed_up',model='HDF')
+        self.window.refresh()
+        self.window.image=Path('/selected.jpg');self.window.update_action()
+        self.assertFalse(self.window.action.isEnabled())
+        self.assertFalse(self.window.restore_button.isEnabled())
+        self.assertEqual(self.window.description.text(),self.window.t('blocked_profile'))
+
+
     def test_restore_preview_shows_original_after_finishing(self):
         from PIL import Image
         from apps.gr_shutdown_studio.core import Session
-        self.window.session=Session.create(Path(self.tmp.name)/'restore-session','FAMILY')
+        self.window.session=Session.create(Path(self.tmp.name)/'restore-session','FAMILY','1.11')
         Image.new('RGB',(720,480),'navy').save(self.window.session.directory/'original.jpg')
         Image.new('RGB',(720,480),'orange').save(self.window.session.directory/'prepared.jpg')
         self.window.session.data.update(state='complete',last_result='restored')
