@@ -1,0 +1,55 @@
+name: Shutdown-image compatibility / 关机图片适配
+description: Submit metadata and observations for an exact camera and firmware.
+title: "[Compatibility] "
+body:
+  - type: markdown
+    attributes:
+      value: "Use the app's JSON report. Keep originals, firmware, artwork scripts and full manufacturing blocks private. / 请使用 App 的 JSON 报告，不公开原图、固件、包含图片的脚本或完整制造区数据。"
+  - type: dropdown
+    id: camera
+    attributes:
+      label: Camera / 机型
+      options:
+        - GR III
+        - GR III Street Edition
+        - GR III Diary Edition
+        - GR III HDF
+        - GR IIIx
+        - GR IIIx Urban Edition
+        - GR IIIx HDF
+        - GR IV
+        - GR IV HDF
+        - GR IV Monochrome
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Menu firmware and app version / 菜单固件及 App 版本
+      placeholder: "GR III 2.10, Studio 0.3.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Last completed stage / 最后完成的阶段
+      options:
+        - Local evidence collection / 本地资料收集
+        - Fresh resource export and backup / 新鲜资源读出与备份
+        - Reviewed installation and full readback / 已审核安装与完整读回
+        - Restoration, readback and screen check / 恢复、读回与显示检查
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Observed result / 实际观察结果
+      description: "State what happened and the reviewed procedure used. Do not infer compatibility from a shared update file. / 说明实际结果及使用的已审核操作方法，不用共享更新包推断兼容性。"
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Metadata-only JSON report / 元数据 JSON 报告
+      description: "Attach the exported report or paste its JSON. / 附上导出的报告或粘贴 JSON。"
+      render: json
