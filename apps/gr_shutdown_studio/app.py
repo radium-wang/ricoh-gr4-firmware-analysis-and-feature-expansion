@@ -248,7 +248,9 @@ class Studio(QMainWindow):
 
     def preview(self):
         try:
-            if self.session and self.session.state in ('prepared','wait_stage1','wait_install','verified','complete') and (self.session.directory/'prepared.jpg').exists():
+            if self.session and (self.session.state in ('wait_restore','restored') or self.session.state=='complete' and self.session.data.get('last_result')=='restored'):
+                with Image.open(self.session.directory/'original.jpg') as image:result=image.convert('RGB')
+            elif self.session and self.session.state in ('prepared','wait_stage1','wait_install','verified','complete') and (self.session.directory/'prepared.jpg').exists():
                 with Image.open(self.session.directory/'prepared.jpg') as image:result=image.convert('RGB')
             elif self.image:
                 result=render_image(self.image,'crop' if self.mode.currentIndex()==0 else 'contain',self.horizontal.value()/100,self.vertical.value()/100)
