@@ -86,6 +86,20 @@ class InterfaceTests(unittest.TestCase):
         self.assertTrue(self.window.action.isEnabled())
 
 
+    def test_design_does_not_present_original_as_the_selected_photo(self):
+        from PIL import Image
+        from apps.gr_shutdown_studio.core import Session
+        self.window.session=Session.create(Path(self.tmp.name)/'design','FAMILY')
+        Image.new('RGB',(720,480),'navy').save(self.window.session.directory/'original.jpg')
+        self.window.session.data['state']='backed_up';self.window.refresh()
+        self.assertEqual(self.window.preview_label.text(),self.window.t('empty_preview'))
+        photo=self.window.session.directory/'photo.jpg'
+        Image.new('RGB',(720,480),'orange').save(photo)
+        self.window.image=photo;self.window.preview();self.window.update_action()
+        self.assertTrue(self.window.action.isEnabled())
+        self.assertGreater(self.window.preview_label.pixmap().toImage().pixelColor(10,10).red(),240)
+
+
     def test_restore_preview_shows_original_after_finishing(self):
         from PIL import Image
         from apps.gr_shutdown_studio.core import Session
