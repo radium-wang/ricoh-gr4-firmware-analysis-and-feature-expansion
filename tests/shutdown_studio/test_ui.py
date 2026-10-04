@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication,QLabel,QDialog,QComboBox,QRadioButton,QTableWidget
-from apps.gr_shutdown_studio.app import Studio
+from apps.gr_shutdown_studio.app import Studio, dispose_window
 
 APP=QApplication.instance() or QApplication([])
 
@@ -17,7 +17,7 @@ class InterfaceTests(unittest.TestCase):
         with patch('apps.gr_shutdown_studio.app.QSettings',return_value=self.settings):
             self.window=Studio()
     def tearDown(self):
-        self.window.close();self.window.deleteLater();APP.processEvents();self.tmp.cleanup()
+        self.window.close();dispose_window(self.window);self.tmp.cleanup()
     def test_settings_and_language_remain_bilingual(self):
         for language in ['zh','en']:
             self.window.language=language;self.window.translate();self.window.refresh()
@@ -31,7 +31,7 @@ class InterfaceTests(unittest.TestCase):
             with patch.object(QDialog,'exec',check):self.window.show_settings()
     def test_primary_action_requires_the_current_step_inputs(self):
         self.assertFalse(self.window.action.isEnabled())
-        self.window.firmware_input.setText('1.11')
+        self.window.firmware_input.setCurrentIndex(1)
         self.assertTrue(self.window.action.isEnabled())
         self.assertFalse(self.window.restore_button.isEnabled())
         from apps.gr_shutdown_studio.core import Session
@@ -51,7 +51,7 @@ class InterfaceTests(unittest.TestCase):
         self.assertTrue(self.window.camera.isVisible())
         self.assertFalse(self.window.card_panel.isVisible())
         self.assertFalse(self.window.preview_panel.isVisible())
-        self.assertEqual(self.window.findChildren(QComboBox),[])
+        self.assertEqual(self.window.findChildren(QComboBox),[self.window.firmware_input])
         self.window.session=Session.create(Path(self.tmp.name)/'stages','FAMILY','1.11')
         for state in ['wait_preflight','wait_backup','wait_stage1','wait_install','wait_restore','wait_restore_check','verified','restored']:
             self.window.session.data['state']=state;self.window.refresh();APP.processEvents()
@@ -72,6 +72,33 @@ class InterfaceTests(unittest.TestCase):
     def test_first_action_opens_backup_folder_selection(self):
         with patch.object(self.window,'new_session') as create:
             self.window.next_step();create.assert_called_once_with()
+
+    def test_changing_camera_requires_a_fresh_version_selection(self):
+        self.window.firmware_input.setCurrentIndex(1)
+        self.assertEqual(self.window.firmware_version(),'1.11')
+        self.window.camera.options[1].setChecked(True)
+        self.assertEqual(self.window.firmware_version(),'')
+        self.assertFalse(self.window.action.isEnabled())
+        self.window.firmware_input.setCurrentIndex(1)
+        self.assertEqual(self.window.firmware_version(),'1.60')
+
+    def test_other_version_cancel_or_invalid_input_cannot_start_session(self):
+        from PySide6.QtWidgets import QInputDialog
+        for value,accepted in [('2.00',False),('1.1',True)]:
+            with patch.object(QInputDialog,'getText',return_value=(value,accepted)),patch.object(self.window,'error'):
+                self.window.firmware_input.setCurrentIndex(self.window.firmware_input.findData('other'))
+            self.assertEqual(self.window.firmware_version(),'')
+            self.assertFalse(self.window.action.isEnabled())
+
+    def test_open_session_displays_its_saved_version_without_reusing_selection(self):
+        from apps.gr_shutdown_studio.core import Session
+        from PySide6.QtWidgets import QFileDialog
+        saved = Session.create(Path(self.tmp.name)/'saved','URBAN','1.60')
+        self.window.firmware_input.setCurrentIndex(1)
+        with patch.object(QFileDialog,'getOpenFileName',return_value=(str(saved.directory/'session.json'),'')):
+            self.window.open_session()
+        self.assertEqual(self.window.camera.currentIndex(),1)
+        self.assertEqual(self.window.firmware_version(),'1.60')
 
     def test_design_and_finish_require_photo_and_confirmation(self):
         from apps.gr_shutdown_studio.core import Session

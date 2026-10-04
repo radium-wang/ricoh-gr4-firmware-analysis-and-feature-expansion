@@ -4,7 +4,7 @@ A desktop app for preparing and verifying custom Ricoh GR shutdown images on mac
 
 ## Workflow
 
-1. Choose the workflow, enter the firmware shown in the camera menu, and create a backup folder on your computer. Select the FAT32 SD card when prompted.
+1. Choose the camera family, select the firmware shown in its menu, and create a backup folder on your computer. Select the FAT32 SD card when prompted.
 2. Prepare a small SD copy check. Enable Script from the camera factory menu and run once.
 3. Reconnect the card. The app verifies the copy and prepares the backup script.
 4. Run the backup once, reconnect, and save the original on your computer.
@@ -12,7 +12,7 @@ A desktop app for preparing and verifying custom Ricoh GR shutdown images on mac
 6. Prepare installation, run the camera script, and reconnect for full readback verification. Urban requires a temporary-image stage first.
 7. Check the actual shutdown screen and disable Script. Keep the session to restore later. Urban restoration first exports and verifies its internal original before preparing the restore script.
 
-The sidebar tracks three stages: **Back up original → Choose image → Install & verify**. Each page shows only the current controls. Camera tasks appear as numbered instructions; the bottom-right button advances the current step. Camera family, framing and language use visible radio options with the operating system’s control style.
+The sidebar tracks three stages: **Back up original → Choose image → Install & verify**. Each page shows only the current controls. Camera tasks appear as numbered instructions; the bottom-right button advances the current step. Camera family and framing use segmented choices. The firmware popup offers known versions and an “Other version” entry; changing camera family clears the selection. Language options remain visible in Settings.
 
 Secondary actions use compact, borderless sidebar rows with line icons; primary actions stay in the footer.
 
@@ -32,6 +32,8 @@ Only FAT32 volume roots are accepted for deployment. The app does not format car
 ## Desktop stability
 
 Version 0.2.1 replaces Qt 6.8.3 with Qt 6.11.2. An arm64 macOS 27 report showed a startup-time crash in the Cocoa accessibility element destructor. The newer runtime includes accessibility cache/lifetime changes. Packaging checks the actual bundled Qt and app versions; the app version is also shown in the sidebar. Keep accessibility enabled when testing the packaged app. Offline UI tests do not cover Cocoa or macOS accessibility clients.
+
+Version 0.2.3 also addresses a separate exit-time report: dialogs are scheduled for deletion after closing, and the window tree is explicitly destroyed before Python shutdown. Lifecycle tests exercise repeated dialog opening and both window closing and application quit in isolated processes.
 
 ## Run and build
 
@@ -56,7 +58,7 @@ Outputs: `app-dist/GR Shutdown Studio.app` on macOS, `app-dist/GR Shutdown Studi
 
 图形化关机画面工具，支持 macOS 和 Windows。按界面完成卡检查、原图备份、选图裁剪、图片编码、准备安装和完整读回校验。相机开关机仍需手动完成；Urban 会自动引导两阶段安装。
 
-界面分为 **备份原图 → 选择画面 → 安装校验** 三个阶段，左侧标明进度。每页只显示当前需要的控件，相机上的操作按序号列出，右下角按钮执行下一步。相机、构图和语言选项直接展开，使用系统样式的单选控件。
+界面分为 **备份原图 → 选择画面 → 安装校验** 三个阶段，左侧标明进度。每页只显示当前需要的控件，相机上的操作按序号列出，右下角按钮执行下一步。相机和构图采用分段选择，固件采用版本菜单，其他版本可单独填写；切换机型会清空已选版本。语言选项在设置页直接展开。
 
 侧栏工具改为紧凑的线条图标与文字入口，主操作保留在右下角。
 
@@ -64,6 +66,6 @@ Outputs: `app-dist/GR Shutdown Studio.app` on macOS, `app-dist/GR Shutdown Studi
 
 支持范围见[机型与固件兼容表](../../docs/extensions/shutdown-compatibility.md)。安装目前仅开放仓库已有版本依据的 GR IV / HDF 1.11 与 Urban 1.60，其他组合保持关闭。网友可通过“保存测试报告”导出不含图片和机身标识的记录。
 
-0.2.1 更新 Qt 组件，并核对打包后的 Qt 与 App 版本，修复 macOS 启动后崩溃的问题。macOS 最低版本为 13。离屏测试不能覆盖原生 Cocoa 与系统辅助功能调用，分发前还需检查实际打包的 App。
+0.2.1 更新 Qt 组件，并核对打包后的 Qt 与 App 版本，处理 macOS 启动后崩溃的问题。0.2.3 另处理退出时崩溃：关闭的对话框及时销毁，主窗口在 Python 结束前明确清理。macOS 最低版本为 13。离屏测试不能覆盖原生 Cocoa 与系统辅助功能调用，分发前还需检查实际打包的 App。
 
 目前是预览版，完整 App 流程尚未实机验证。Urban 的等长编码不保证适配所有图片，失败时会停止。App 不格式化卡、不刷固件，不会覆盖无法确认归属的旧脚本。操作完成后关闭相机的 Script，保留电脑备份。

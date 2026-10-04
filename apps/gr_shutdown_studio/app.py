@@ -6,12 +6,12 @@ import re
 from pathlib import Path
 
 from PIL import Image
-from PySide6.QtCore import Qt, QThread, Signal, QSettings, QUrl, QSize
+from PySide6.QtCore import Qt, QThread, Signal, QSettings, QUrl, QSize, QCoreApplication, QEvent
 from PySide6.QtGui import QDesktopServices, QPixmap, QImage, QPalette
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QToolButton,
     QLabel, QPushButton, QLineEdit, QFileDialog, QMessageBox,
-    QCheckBox, QFrame, QSlider, QDialog, QProgressBar, QRadioButton,
+    QCheckBox, QFrame, QSlider, QDialog, QProgressBar, QRadioButton, QComboBox,
     QButtonGroup, QScrollArea, QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView, QInputDialog,
 )
 from .core import Session, render_image, WorkflowError
@@ -25,6 +25,10 @@ TEXT = {
  'camera': ('Camera', '相机'),
  'family': ('GR IV / HDF / Monochrome', 'GR IV / HDF / Monochrome'),
  'urban': ('GR IIIx Urban Edition · 1.60', 'GR IIIx Urban Edition · 1.60'),
+ 'family_short': ('GR IV series', 'GR IV 系列'),
+ 'urban_short': ('GR IIIx Urban', 'GR IIIx Urban'),
+ 'firmware_choose': ('Choose the version shown on your camera', '选择相机菜单显示的版本'),
+ 'firmware_other': ('Other version…', '其他版本…'),
  'card': ('SD card', 'SD 卡'), 'choose': ('Choose…', '选择…'),
  'card_hint': ('Choose the FAT32 card root from your card reader.', '选择读卡器中 FAT32 SD 卡的根目录。'),
  'image': ('Image', '图片'), 'choose_image': ('Choose an image', '选择自己的图片'),
@@ -67,7 +71,7 @@ TEXT = {
  'leave_busy': ('Wait for the current operation to finish before closing.', '请等当前操作结束再关闭。'),
 }
 TEXT.update({
- 'firmware': ('Firmware shown in camera menu', '相机菜单中的固件版本'),
+ 'firmware': ('Firmware version', '固件版本'),
  'firmware_hint': ('For example 1.11. Keep this body and firmware unchanged throughout the session.', '例如 1.11。操作期间保持同一台机身及固件版本。'),
  'firmware_missing': ('Record firmware…', '记录固件版本…'),
  'test_report': ('Save test report…', '保存测试报告…'),
@@ -206,26 +210,33 @@ class Worker(QThread):
 
 
 class Choice(QWidget):
-    """Two visible alternatives using the platform's radio-button style."""
+    """A compact segmented choice with an explicit selected state."""
     currentIndexChanged = Signal(int)
 
     def __init__(self, keys, translate, vertical=False):
         super().__init__()
+        self.setObjectName('segmented')
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self.keys = keys
         self.group = QButtonGroup(self)
         self.options = []
-        row = QVBoxLayout(self) if vertical else QHBoxLayout(self)
-        row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(12)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(3, 3, 3, 3)
+        row.setSpacing(2)
         for index, key in enumerate(keys):
-            button = QRadioButton(translate(key))
+            button = QPushButton(translate(key))
+            button.setObjectName('segment')
+            button.setCheckable(True)
+            button.setFixedHeight(30)
             self.group.addButton(button, index)
             self.options.append(button)
-            row.addWidget(button)
-        if not vertical:
-            row.addStretch()
+            row.addWidget(button, 1)
         self.options[0].setChecked(True)
-        self.group.idClicked.connect(self.currentIndexChanged.emit)
+        self.group.idToggled.connect(self.selection_toggled)
+
+    def selection_toggled(self, index, checked):
+        if checked:
+            self.currentIndexChanged.emit(index)
 
     def currentIndex(self):
         return self.group.checkedId()
@@ -233,7 +244,6 @@ class Choice(QWidget):
     def setCurrentIndex(self, index):
         if index != self.currentIndex():
             self.options[index].setChecked(True)
-            self.currentIndexChanged.emit(index)
 
     def translate(self, translate):
         for button, key in zip(self.options, self.keys):
@@ -439,20 +449,36 @@ class Studio(QMainWindow):
         setup = QVBoxLayout(self.setup_page)
         setup.setContentsMargins(0, 0, 0, 0)
         setup.setSpacing(18)
-        self.camera_panel = QWidget()
-        camera_layout = QVBoxLayout(self.camera_panel)
-        camera_layout.setContentsMargins(0, 0, 0, 0)
-        camera_layout.setSpacing(12)
-        self.label(camera_layout, 'camera', 'section')
-        self.camera = Choice(['family', 'urban'], self.t, vertical=True)
-        camera_layout.addWidget(self.camera)
-        self.label(camera_layout, 'firmware', 'section')
-        self.firmware_input = QLineEdit()
-        self.firmware_input.setPlaceholderText('1.11 / 1.60')
-        self.firmware_input.setMaximumWidth(180)
-        self.firmware_input.textChanged.connect(self.update_action)
-        camera_layout.addWidget(self.firmware_input)
-        self.label(camera_layout, 'firmware_hint', 'hint')
+        self.camera_panel = QFrame()
+        self.camera_panel.setObjectName('panel')
+        camera_layout = QGridLayout(self.camera_panel)
+        camera_layout.setContentsMargins(20, 20, 20, 20)
+        camera_layout.setHorizontalSpacing(24)
+        camera_layout.setVerticalSpacing(16)
+        for row, key in [(0, 'camera'), (2, 'firmware')]:
+            label = QLabel()
+            label.setProperty('text_key', key)
+            label.setObjectName('section')
+            camera_layout.addWidget(label, row, 0, alignment=Qt.AlignVCenter)
+        self.camera = Choice(['family_short', 'urban_short'], self.t)
+        self.camera.setFixedWidth(370)
+        camera_layout.addWidget(self.camera, 0, 1)
+        self.camera_detail = QLabel()
+        self.camera_detail.setObjectName('hint')
+        camera_layout.addWidget(self.camera_detail, 1, 1)
+        self.firmware_input = QComboBox()
+        self.firmware_input.setFixedWidth(370)
+        self.firmware_input.setMinimumHeight(30)
+        self.firmware_input.currentIndexChanged.connect(self.choose_firmware_version)
+        self.camera.currentIndexChanged.connect(self.reset_firmware_choices)
+        self.reset_firmware_choices()
+        camera_layout.addWidget(self.firmware_input, 2, 1)
+        hint = QLabel()
+        hint.setProperty('text_key', 'firmware_hint')
+        hint.setObjectName('hint')
+        hint.setWordWrap(True)
+        camera_layout.addWidget(hint, 3, 1)
+        camera_layout.setColumnStretch(2, 1)
         setup.addWidget(self.camera_panel)
         self.backup_panel = QFrame()
         self.backup_panel.setObjectName('panel')
@@ -481,6 +507,7 @@ class Studio(QMainWindow):
         photo_row.addWidget(self.image_name, 1)
         self.label(design, 'framing', 'section')
         self.mode = Choice(['crop', 'contain'], self.t)
+        self.mode.setMaximumWidth(430)
         self.mode.currentIndexChanged.connect(self.preview)
         design.addWidget(self.mode)
         self.position_panel = QWidget()
@@ -548,7 +575,7 @@ class Studio(QMainWindow):
         preview.addWidget(self.preview_caption)
         self.preview_label = Preview()
         preview.addWidget(self.preview_label, alignment=Qt.AlignHCenter)
-        self.badge = QLabel()
+        self.badge = QLabel(self)
         self.badge.setObjectName('hint')
         self.badge.setWordWrap(True)
         self.badge.hide()
@@ -611,8 +638,8 @@ class Studio(QMainWindow):
         main.addLayout(footer)
         outer.addLayout(main, 1)
 
-        # Style only surfaces and typography. Leave buttons, choices, sliders,
-        # text fields and popup menus to Qt's macOS / Windows platform style.
+        # Style surfaces, sidebar tools and segmented choices. Use the platform
+        # style for popup menus, primary buttons, sliders and text fields.
         dark = self.palette().color(QPalette.Window).lightness() < 128
         surface = '#272729' if dark else '#f2f2f4'
         secondary = '#aaaaaf' if dark else '#6c6c72'
@@ -633,6 +660,10 @@ class Studio(QMainWindow):
             QToolButton#sidebar_action:hover {{ background:{surface}; }}
             QToolButton#sidebar_action:pressed {{ background:{selected}; }}
             QToolButton#sidebar_action:focus {{ border:1px solid {border}; }}
+            QWidget#segmented {{ background:{surface}; border:1px solid {border}; border-radius:8px; }}
+            QPushButton#segment {{ background:transparent; border:0; border-radius:5px; padding:3px 10px; }}
+            QPushButton#segment:checked {{ background:{self.palette().color(QPalette.Button).name()}; border:1px solid {border}; font-weight:600; }}
+            QPushButton#segment:focus {{ border:1px solid {selected}; }}
             QFrame#step {{ border-radius:8px; }}
             QFrame#step[active="true"] {{ background:{selected}; }}
             QLabel#step_number, QLabel#task_number {{ border:1px solid {border}; border-radius:12px; }}
@@ -648,6 +679,45 @@ class Studio(QMainWindow):
         self.camera.translate(self.t)
         self.mode.translate(self.t)
         self.card_input.setPlaceholderText(self.t('card_hint'))
+        self.firmware_input.setItemText(0, self.t('firmware_choose'))
+        self.firmware_input.setItemText(self.firmware_input.findData('other'), self.t('firmware_other'))
+        self.camera_detail.setText(self.t('family' if self.camera.currentIndex() == 0 else 'urban'))
+
+    def reset_firmware_choices(self):
+        self.firmware_input.blockSignals(True)
+        self.firmware_input.clear()
+        self.firmware_input.addItem(self.t('firmware_choose'), None)
+        version = '1.11' if self.camera.currentIndex() == 0 else '1.60'
+        self.firmware_input.addItem(version, version)
+        self.firmware_input.addItem(self.t('firmware_other'), 'other')
+        self.firmware_input.setCurrentIndex(0)
+        self.firmware_input.blockSignals(False)
+        self.camera_detail.setText(self.t('family' if self.camera.currentIndex() == 0 else 'urban'))
+        self.update_action()
+
+    def firmware_version(self):
+        value = self.firmware_input.currentData()
+        return value if value and value != 'other' else ''
+
+    def choose_firmware_version(self):
+        if self.firmware_input.currentData() == 'other':
+            value, accepted = QInputDialog.getText(self, self.t('firmware'), self.t('firmware_hint'))
+            value = value.strip()
+            if accepted and re.fullmatch(r'\d{1,2}\.\d{2}', value):
+                self.firmware_input.insertItem(2, value, value)
+                self.firmware_input.setCurrentIndex(2)
+            else:
+                self.firmware_input.setCurrentIndex(0)
+                if accepted:
+                    self.error(self.t('firmware_hint'))
+        self.update_action()
+
+    def exec_dialog(self, dialog):
+        try:
+            return dialog.exec()
+        finally:
+            # Destroy in Qt's event loop, not the interpreter's unordered exit cleanup.
+            dialog.deleteLater()
 
     def show_settings(self):
         dialog = QDialog(self)
@@ -688,7 +758,7 @@ class Studio(QMainWindow):
             self.refresh()
             dialog.accept()
         save.clicked.connect(apply)
-        dialog.exec()
+        self.exec_dialog(dialog)
 
     def show_compatibility(self):
         dialog = QDialog(self)
@@ -714,7 +784,7 @@ class Studio(QMainWindow):
         close = QPushButton('OK')
         close.clicked.connect(dialog.accept)
         layout.addWidget(close, alignment=Qt.AlignRight)
-        dialog.exec()
+        self.exec_dialog(dialog)
 
     def record_firmware(self):
         if not self.session:
@@ -750,7 +820,7 @@ class Studio(QMainWindow):
         close = QPushButton('OK')
         close.clicked.connect(dialog.accept)
         layout.addWidget(close, alignment=Qt.AlignRight)
-        dialog.exec()
+        self.exec_dialog(dialog)
 
     def choose_card(self):
         path=QFileDialog.getExistingDirectory(self,self.t('card'),'/Volumes' if sys.platform=='darwin' else '')
@@ -783,7 +853,7 @@ class Studio(QMainWindow):
             self.error(str(error))
 
     def new_session(self):
-        version = self.firmware_input.text().strip()
+        version = self.firmware_version()
         if not re.fullmatch(r'\d{1,2}\.\d{2}', version):
             self.error(self.t('firmware_hint'))
             return
@@ -803,6 +873,12 @@ class Studio(QMainWindow):
         try:
             self.session=Session(Path(path).parent)
             self.camera.setCurrentIndex(0 if self.session.data['kind']=='FAMILY' else 1)
+            version = self.session.data.get('firmware')
+            index = self.firmware_input.findData(version)
+            if version and index < 0:
+                self.firmware_input.insertItem(2, version, version)
+                index = 2
+            self.firmware_input.setCurrentIndex(max(0, index))
             self.image=None;self.image_name.setText('—')
             self.ack.setChecked(False);self.display.setChecked(False);self.refresh()
         except Exception as error:self.error(str(error))
@@ -884,7 +960,7 @@ class Studio(QMainWindow):
         state = self.session.state if self.session else 'new'
         enabled = not busy and state not in ('complete', 'deployment_incomplete')
         if not self.session:
-            enabled = enabled and bool(re.fullmatch(r'\d{1,2}\.\d{2}', self.firmware_input.text().strip()))
+            enabled = enabled and bool(re.fullmatch(r'\d{1,2}\.\d{2}', self.firmware_version()))
         if self.session:
             if state in ('backed_up', 'prepared', 'wait_stage1'):
                 enabled = enabled and installation_allowed(self.session.data['kind'], self.session.data.get('model'), self.session.data.get('firmware'))
@@ -992,11 +1068,23 @@ class Studio(QMainWindow):
         else:event.accept()
 
 
+def dispose_window(window):
+    """Finish file operations and destroy the widget tree while Qt is alive."""
+    if window.worker and window.worker.isRunning():
+        window.worker.wait()
+    window.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)
+
+
 def main():
     application=QApplication(sys.argv)
     application.setApplicationName('GR Shutdown Studio')
     application.setApplicationVersion(__version__)
     window=Studio();window.show()
-    sys.exit(application.exec())
+    try:
+        exit_code = application.exec()
+    finally:
+        dispose_window(window)
+    sys.exit(exit_code)
 
 if __name__=='__main__':main()
