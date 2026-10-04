@@ -27,7 +27,7 @@ TEXT = {
  'image_hint': ('JPEG, PNG, WebP or TIFF. Crop and preview before preparing.', '支持 JPEG、PNG、WebP、TIFF，选图后可裁剪和预览。'),
  'crop': ('Fill frame', '填满画面'), 'contain': ('Fit with borders', '完整显示，保留边框'),
  'horizontal': ('Horizontal position', '水平位置'), 'vertical': ('Vertical position', '垂直位置'),
- 'empty_preview': ('Your shutdown image\n720 × 480', '你的关机画面\n720 × 480'),
+ 'empty_preview': ('Choose a photo to preview\n720 × 480', '选择图片后在这里预览\n720 × 480'),
  'preview': ('Camera preview · 3:2', '相机画面预览 · 3:2'),
  'session': ('Session', '操作记录'), 'new': ('New session', '新建操作记录'),
  'open': ('Open saved session', '打开已有记录'), 'folder': ('Show backup folder', '打开备份文件夹'),
@@ -672,7 +672,7 @@ class Studio(QMainWindow):
                 with Image.open(self.session.directory/'prepared.jpg') as image:result=image.convert('RGB')
             elif self.image:
                 result=render_image(self.image,'crop' if self.mode.currentIndex()==0 else 'contain',self.horizontal.value()/100,self.vertical.value()/100)
-            elif self.session and (self.session.directory/'original.jpg').exists():
+            elif self.session and self.session.state != 'backed_up' and (self.session.directory/'original.jpg').exists():
                 with Image.open(self.session.directory/'original.jpg') as image:result=image.convert('RGB')
             else:
                 self.preview_label.clear();self.preview_label.setText(self.t('empty_preview'));return
