@@ -2,11 +2,12 @@ import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 from pathlib import Path
 import tempfile
+import json
 import unittest
 from unittest.mock import patch
 
 from PySide6.QtCore import QCoreApplication, QEvent
-from PySide6.QtWidgets import QApplication, QFileDialog
+from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox
 from apps.gr_shutdown_studio.research import ResearchRecord
 from apps.gr_shutdown_studio.research_ui import ResearchDialog
 
@@ -52,6 +53,26 @@ class ResearchInterfaceTests(unittest.TestCase):
         self.assertIsNotNone(self.dialog.record)
         self.assertEqual([p.name for p in self.dialog.record.directory.iterdir()], ['research.json'])
         self.assertFalse(self.dialog.record.report()['camera_scripts_generated'])
+
+    def test_unsupported_camera_can_export_without_firmware_file_or_original(self):
+        self.dialog.camera.setCurrentIndex(self.dialog.camera.findData('gr3x'))
+        self.dialog.firmware.setCurrentIndex(self.dialog.firmware.findData('1.60'))
+        with patch.object(QFileDialog, 'getExistingDirectory', return_value=self.temp.name):
+            self.dialog.create_record()
+        self.dialog.observations['shutdown_graphic'].setCurrentIndex(
+            self.dialog.observations['shutdown_graphic'].findData('present'))
+        report = Path(self.temp.name)/'report.json'
+        with patch.object(QFileDialog, 'getSaveFileName', return_value=(str(report), '')), \
+                patch.object(QMessageBox, 'information'):
+            self.dialog.export_report()
+        data = json.loads(report.read_text(encoding='utf-8'))
+        self.assertFalse(data['camera_scripts_generated'])
+        self.assertFalse(data['installation_qualified'])
+        self.assertEqual(data['profile_id'], 'gr3x')
+        self.assertEqual(data['observations']['factory_menu'], 'not_checked')
+        self.assertEqual(data['observations']['shutdown_graphic'], 'present')
+        self.assertEqual(data['original_evidence'], {})
+        self.assertEqual(data['firmware_evidence'], {})
 
 
 if __name__ == '__main__': unittest.main()

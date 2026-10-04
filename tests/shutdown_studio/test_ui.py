@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QApplication,QLabel,QDialog,QComboBox,QRadioButton,QTableWidget
+from PySide6.QtWidgets import QApplication,QLabel,QDialog,QComboBox,QRadioButton,QTableWidget,QTextBrowser,QToolButton
 from apps.gr_shutdown_studio.app import Studio, dispose_window
 
 APP=QApplication.instance() or QApplication([])
@@ -43,6 +43,29 @@ class InterfaceTests(unittest.TestCase):
         self.window.session.data['state']='deployment_incomplete'
         self.window.refresh();self.assertFalse(self.window.action.isEnabled())
         self.assertFalse(self.window.restore_button.isEnabled())
+
+    def test_guide_opens_in_selected_language_and_covers_unsupported_camera(self):
+        for language in ['zh', 'en']:
+            self.window.language = language
+            self.window.translate()
+            self.assertIn('How to use / 使用说明', [button.text() for button in self.window.findChildren(QToolButton)])
+            def check(dialog):
+                browser = dialog.findChild(QTextBrowser)
+                text = browser.toPlainText()
+                self.assertFalse(browser.openExternalLinks())
+                if language == 'zh':
+                    self.assertTrue(text.startswith('中文操作说明'))
+                    self.assertIn('没有这些文件就跳过', text)
+                    self.assertIn('第一轮测试到这里就结束', text)
+                else:
+                    self.assertTrue(text.startswith('English'))
+                    self.assertIn('Skip both', text)
+                    self.assertIn('That is the end of this first test', text)
+                self.assertIn('recovery/original.jpg', text)
+                self.assertIn('Script', text)
+                return 0
+            with patch.object(QDialog, 'exec', check):
+                self.window.show_user_guide()
 
 
     def test_only_current_phase_controls_are_visible(self):

@@ -11,8 +11,8 @@ from .research import OBSERVATIONS, ResearchRecord
 
 TEXT = {
     'title': ('Compatibility testing', '适配测试'),
-    'intro': ('Record your camera and firmware to help extend support. This page does not modify the camera.',
-              '记录机型与固件，协助扩展兼容性。此页面不修改相机。'),
+    'intro': ('Choose your camera and firmware, create a record, then save the report. No camera modification is needed. Missing files can be skipped.',
+              '选机型与固件 → 建立记录 → 保存报告。不用修改相机，没有资料文件也能提交。'),
     'camera_section': ('Camera details', '相机信息'),
     'evidence_section': ('Local evidence · optional', '本地资料 · 可选'),
     'observations_section': ('Your observations · optional', '实际观察 · 可选'),
@@ -30,8 +30,8 @@ TEXT = {
     'not_checked': ('Not checked', '未检查'), 'visible': ('Opened successfully', '已成功打开'),
     'unavailable': ('Could not open', '未能打开'), 'present': ('Image visible', '有图片'),
     'absent': ('No image visible', '没有显示图片'),
-    'source': ('Only import a shutdown JPEG extracted through a reviewed method. Importing a file does not enable installation.',
-               '仅导入按已审核方法读出的关机 JPEG。导入图片不会开放安装。'),
+    'source': ('No update file or extracted original? Skip these buttons. This page cannot extract an unsupported camera’s picture; importing an ordinary photo does not enable installation.',
+               '没有更新文件或已读出原图？跳过这两项即可。此页面不能自动提取未支持机型的图片，导入普通照片不会开放安装。'),
     'export': ('Save report…', '保存报告…'), 'close': ('Close', '关闭'),
     'pending': ('Share the JSON report in a GitHub issue. Pictures and body identifiers are excluded; keep firmware and originals private.',
                 'JSON 报告可附到 GitHub issue，不含图片或机身标识。固件与原图留在自己电脑上。'),
@@ -40,7 +40,8 @@ TEXT = {
     'no_original': ('Original not supplied.', '尚未提供原图。'),
     'file_checked': ('Update header inspected; installed firmware is not authenticated.', '已分析更新包头；未验证相机实际安装的固件。'),
     'no_file': ('Update file not supplied.', '尚未提供更新文件。'),
-    'saved': ('Report saved. No files were sent automatically.', '报告已保存，没有自动发送任何文件。'),
+    'saved': ('Report saved. Send this JSON to the person who gave you the app, or attach it to a compatibility issue. This first test is complete; wait for a method naming your exact camera and firmware. Nothing was sent automatically.',
+              '报告已保存。把这个 JSON 发给提供软件的人，或附到兼容性 issue。第一轮测试到这里结束，后续等明确对应你机型和固件的方法。没有自动发送任何文件。'),
     'failed': ('Could not complete operation', '操作未完成'),
     'version_error': ('Enter a menu version such as 2.10 or 1.60.', '请填写菜单版本，例如 2.10 或 1.60。'),
 }

@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps/**'
       - 'tests/shutdown_studio/**'
+      - 'docs/extensions/shutdown-studio-user-guide.md'
       - 'tools/gr4_shutdown.py'
       - 'tools/gr3x_urban_*.py'
       - 'tools/gr4_model.py'
@@ -43,7 +44,9 @@ jobs:
       - run: python apps/gr_shutdown_studio/build.py
       - name: Archive macOS bundle with permissions
         if: runner.os == 'macOS'
-        run: ditto -c -k --sequesterRsrc --keepParent 'app-dist/GR Shutdown Studio.app' app-dist/GR-Shutdown-Studio-macOS.zip
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent 'app-dist/GR Shutdown Studio.app' app-dist/GR-Shutdown-Studio-macOS.zip
+          python -c "from zipfile import ZipFile; z = ZipFile('app-dist/GR-Shutdown-Studio-macOS.zip', 'a'); z.write('app-dist/START-HERE.txt', 'START-HERE.txt'); z.close()"
       - uses: actions/upload-artifact@v4
         if: runner.os == 'macOS'
         with:
