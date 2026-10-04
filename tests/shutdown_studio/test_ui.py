@@ -38,4 +38,17 @@ class InterfaceTests(unittest.TestCase):
         self.window.refresh();self.assertFalse(self.window.action.isEnabled())
         self.assertFalse(self.window.restore_button.isEnabled())
 
+
+    def test_restore_preview_shows_original_after_finishing(self):
+        from PIL import Image
+        from apps.gr_shutdown_studio.core import Session
+        self.window.session=Session.create(Path(self.tmp.name)/'restore-session','FAMILY')
+        Image.new('RGB',(720,480),'navy').save(self.window.session.directory/'original.jpg')
+        Image.new('RGB',(720,480),'orange').save(self.window.session.directory/'prepared.jpg')
+        self.window.session.data.update(state='complete',last_result='restored')
+        self.window.refresh()
+        color=self.window.preview_label.pixmap().toImage().pixelColor(10,10)
+        self.assertLess(color.red(),10)
+        self.assertGreater(color.blue(),100)
+
 if __name__=='__main__':unittest.main()
