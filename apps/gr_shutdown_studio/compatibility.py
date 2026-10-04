@@ -25,6 +25,28 @@ PROFILES = (
     CameraProfile('gr4-mono', 'GR IV Monochrome', 'FAMILY', 'MONO', (), 'Model and target observed, but firmware version was not recorded.'),
 )
 
+# Official update history is a selection aid, not installation evidence.
+OFFICIAL_HISTORY = {
+    'GR III': ('2.10', '2.00', '1.92', '1.91', '1.81', '1.71', '1.70', '1.61', '1.60', '1.50', '1.41', '1.31', '1.30', '1.20', '1.11', '1.10'),
+    'GR IIIx': ('1.60', '1.50', '1.42', '1.41', '1.31', '1.21', '1.20', '1.11', '1.10', '1.02', '1.01'),
+    'GR IV': ('1.11', '1.04', '1.03'),
+}
+
+
+def profile_by_id(profile_id):
+    return next((p for p in PROFILES if p.id == profile_id), None)
+
+
+def camera_family(profile_id):
+    if not profile_by_id(profile_id):
+        raise ValueError('Unknown camera profile.')
+    return 'GR IV' if profile_id.startswith('gr4') else 'GR IIIx' if profile_id.startswith('gr3x') else 'GR III'
+
+
+def research_versions(profile_id):
+    # The IV update page excludes Monochrome; do not suggest its color-body versions.
+    return () if profile_id == 'gr4-mono' else OFFICIAL_HISTORY[camera_family(profile_id)]
+
 
 def profile_for(workflow, model):
     return next((p for p in PROFILES if p.workflow == workflow and p.model == model), None)

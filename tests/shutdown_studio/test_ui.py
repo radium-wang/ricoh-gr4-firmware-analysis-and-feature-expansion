@@ -60,7 +60,7 @@ class InterfaceTests(unittest.TestCase):
             self.assertFalse(self.window.mode.isVisible())
             self.assertFalse(self.window.preview_panel.isVisible())
             self.assertEqual(self.window.display.isVisible(),state in ['verified','restored'])
-        self.window.session.data['state']='backed_up';self.window.refresh();APP.processEvents()
+        self.window.session.data.update(state='backed_up',model='HDF');self.window.refresh();APP.processEvents()
         self.assertIs(self.window.pages.currentWidget(),self.window.design_page)
         self.assertTrue(self.window.mode.isVisible())
         self.assertTrue(self.window.preview_panel.isVisible())
@@ -144,9 +144,15 @@ class InterfaceTests(unittest.TestCase):
         self.window.session.data.update(state='backed_up',model='HDF')
         self.window.refresh()
         self.window.image=Path('/selected.jpg');self.window.update_action()
-        self.assertFalse(self.window.action.isEnabled())
+        self.assertTrue(self.window.action.isEnabled())
+        self.assertEqual(self.window.action.text(),self.window.t('test_report'))
+        self.assertIs(self.window.pages.currentWidget(),self.window.result_page)
         self.assertFalse(self.window.restore_button.isEnabled())
+        self.assertFalse(self.window.preview_panel.isVisible())
         self.assertEqual(self.window.description.text(),self.window.t('blocked_profile'))
+        with patch.object(self.window,'export_report') as export:
+            self.window.next_step()
+            export.assert_called_once_with()
 
 
     def test_restore_preview_shows_original_after_finishing(self):

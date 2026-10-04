@@ -29,6 +29,10 @@ For Urban restoration, the first camera pass only exports the internal original 
 
 ## Adding a model or version
 
+Version 0.3.0 adds **Compatibility testing** for all ten catalog editions and other menu versions. It collects local firmware-header evidence and user observations, and can preserve an already extracted JPEG in two computer copies. It generates no camera scripts and never unlocks installation. The main GR IV workflow also labels older known versions as backup tests and ends unqualified backups with report export. Unknown GR III / IIIx editions still need a reviewed, dedicated resource-read method.
+
+See the [community testing procedure](community-compatibility-testing.md) for participant instructions, how to adapt a model without owning it, and the evidence required before enabling a writer.
+
 A contributor must supply an evidence report for the exact model and menu firmware, factory entry, product selection, resource drive/path, backup readback, copy and truncation behavior, accepted JPEG structure, one-shot installation, visible screen and restoration. Preserve a computer original before every write experiment. Start with resource reads and backup tests; enable installation in the catalog only after the relevant model-specific evidence is reviewed. Tests with synthetic JPEGs check application behavior, not camera compatibility.
 
 Do not publish firmware, factory JPEGs, private artwork, complete manufacturing blocks or generated TTL containing artwork. Metadata-only test reports can accompany an issue. Keep resource bytes and original backups with their owners.
@@ -47,6 +51,8 @@ The container's model/version/hash and candidate resource names are evidence onl
 The official pages checked on 2026-10-04 list [GR III 2.10](https://www.ricoh-imaging.co.jp/english/support/digital/gr3_s.html), [GR IIIx 1.60](https://www.ricoh-imaging.co.jp/english/support/digital/gr3x_s.html) and [GR IV / HDF 1.11](https://www.ricoh-imaging.co.jp/english/support/digital/gr4_s.html). They are references for update versions, not evidence that this app can replace shutdown images on all their applicable products. The GR IV page's applicable list does not include Monochrome. Street, Diary and Urban retain their dedicated power-off graphics across updates according to the GR III / IIIx pages.
 
 ## 中文
+
+0.3.0 增加“适配测试”：10 类机型及其他菜单版本均可建立本地研究记录，分析更新包头、记录观察结果，并保留已读出的 JPEG 双份副本。此入口不生成相机脚本，也不自动开放安装。GR IV 主流程的旧版本标为备份测试，未确认组合完成备份后导出报告；未知 GR III／IIIx 仍需专用、已审核的资源读取方法。分发步骤及没有全部机型时的适配方法见[社区测试流程](community-compatibility-testing.md)。
 
 目标是逐步覆盖 GR III、GR IIIx、GR IV 的各机型和固件版本，目前不能宣称全版本兼容。仓库已有依据对应 GR IV / HDF 1.11、GR IIIx Urban 1.60；Monochrome 的机型与目标路径有记录，但当时未记录固件版本，因此本次网友测试版不开放它的安装。其他 GR III、IIIx 型号也不套用 Urban 脚本。
 

@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QButtonGroup, QScrollArea, QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView, QInputDialog,
 )
 from .core import Session, render_image, WorkflowError
-from .compatibility import PROFILES, installation_allowed
+from .compatibility import PROFILES, installation_allowed, OFFICIAL_HISTORY
 from . import __version__
 from .icons import sidebar_icon
 
@@ -29,6 +29,10 @@ TEXT = {
  'urban_short': ('GR IIIx Urban', 'GR IIIx Urban'),
  'firmware_choose': ('Choose the version shown on your camera', '选择相机菜单显示的版本'),
  'firmware_other': ('Other version…', '其他版本…'),
+ 'research': ('Compatibility testing', '适配测试'),
+ 'backup_test': ('backup test', '备份测试'),
+ 'backup_test_complete': ('Backup test complete', '备份测试完成'),
+ 'backup_test_keep': ('Copy the entire backup folder to another drive. Save a test report to help add installation support for this combination.', '请将整个备份目录复制到另一存储位置。保存测试报告，协助验证此组合的安装兼容性。'),
  'card': ('SD card', 'SD 卡'), 'choose': ('Choose…', '选择…'),
  'card_hint': ('Choose the FAT32 card root from your card reader.', '选择读卡器中 FAT32 SD 卡的根目录。'),
  'image': ('Image', '图片'), 'choose_image': ('Choose an image', '选择自己的图片'),
@@ -413,6 +417,8 @@ class Studio(QMainWindow):
         tools_layout.addWidget(self.report_button)
         tools_layout.addSpacing(8)
         tools_layout.addWidget(self.sidebar_button('compatibility', self.show_compatibility, 'camera'))
+        self.research_button = self.sidebar_button('research', self.show_research, 'document')
+        tools_layout.addWidget(self.research_button)
         self.settings_button = self.sidebar_button('settings', self.show_settings, 'settings')
         self.settings_button.setText('Settings / 设置')
         tools_layout.addWidget(self.settings_button)
@@ -681,6 +687,11 @@ class Studio(QMainWindow):
         self.card_input.setPlaceholderText(self.t('card_hint'))
         self.firmware_input.setItemText(0, self.t('firmware_choose'))
         self.firmware_input.setItemText(self.firmware_input.findData('other'), self.t('firmware_other'))
+        if self.camera.currentIndex() == 0:
+            for value in OFFICIAL_HISTORY['GR IV'][1:]:
+                index = self.firmware_input.findData(value)
+                if index >= 0:
+                    self.firmware_input.setItemText(index, f'{value} · {self.t("backup_test")}')
         self.camera_detail.setText(self.t('family' if self.camera.currentIndex() == 0 else 'urban'))
 
     def reset_firmware_choices(self):
@@ -689,6 +700,9 @@ class Studio(QMainWindow):
         self.firmware_input.addItem(self.t('firmware_choose'), None)
         version = '1.11' if self.camera.currentIndex() == 0 else '1.60'
         self.firmware_input.addItem(version, version)
+        if self.camera.currentIndex() == 0:
+            for value in OFFICIAL_HISTORY['GR IV'][1:]:
+                self.firmware_input.addItem(f'{value} · {self.t("backup_test")}', value)
         self.firmware_input.addItem(self.t('firmware_other'), 'other')
         self.firmware_input.setCurrentIndex(0)
         self.firmware_input.blockSignals(False)
@@ -760,12 +774,16 @@ class Studio(QMainWindow):
         save.clicked.connect(apply)
         self.exec_dialog(dialog)
 
+    def show_research(self):
+        from .research_ui import ResearchDialog
+        self.exec_dialog(ResearchDialog(self, self.language))
+
     def show_compatibility(self):
         dialog = QDialog(self)
         dialog.setWindowTitle(self.t('compatibility'))
         dialog.resize(900, 520)
         layout = QVBoxLayout(dialog)
-        note = QLabel('Preview workflows need camera testing. Empty firmware entries are not installation support.' if self.language == 'en' else '预览版流程尚待整套实机测试。未记录固件版本的机型不开放安装。')
+        note = QLabel('All listed cameras can join Compatibility testing. GR IV family backups can be tested on other menu versions. Installation evidence remains specific to each model/version.' if self.language == 'en' else '所有机型均可通过“适配测试”收集证据。GR IV 系列其他菜单版本可做备份测试；安装仍按具体机型和固件证据开放。')
         note.setWordWrap(True)
         layout.addWidget(note)
         table = QTableWidget(len(PROFILES), 3)
@@ -905,7 +923,7 @@ class Studio(QMainWindow):
     def failed(self,message):self.refresh();self.error(message)
 
     def busy(self,value):
-        for widget in [self.action,self.restore_button,self.new_button,self.open_button,self.settings_button,self.camera,self.mode,self.horizontal,self.vertical,self.ack,self.display,self.image_button,self.card_button,self.original_button,self.folder_button,self.firmware_button,self.report_button,self.firmware_input]:widget.setEnabled(not value)
+        for widget in [self.action,self.restore_button,self.new_button,self.open_button,self.settings_button,self.research_button,self.camera,self.mode,self.horizontal,self.vertical,self.ack,self.display,self.image_button,self.card_button,self.original_button,self.folder_button,self.firmware_button,self.report_button,self.firmware_input]:widget.setEnabled(not value)
         self.progress.setVisible(value)
         if value:self.instruction.setText(self.t('working'))
         else:self.refresh()
@@ -917,6 +935,9 @@ class Studio(QMainWindow):
         try:
             if not self.session:raise WorkflowError(self.t('select_session'))
             state=self.session.state
+            if self.backup_test_only():
+                self.export_report()
+                return
             if state in ['new','wait_preflight','prepared','wait_stage1'] and not self.ack.isChecked():
                 raise WorkflowError(self.t('confirm_camera'))
             if state=='backed_up':
@@ -945,6 +966,8 @@ class Studio(QMainWindow):
         except Exception as error:self.error(str(error))
 
     def stage(self, state):
+        if self.backup_test_only():
+            return 0
         if state == 'deployment_incomplete' and self.session:
             state = self.session.data.get('previous_state', state)
         if state in ('new', 'wait_preflight', 'wait_backup'):
@@ -953,10 +976,18 @@ class Studio(QMainWindow):
             return 1
         return 2
 
+    def backup_test_only(self):
+        return bool(self.session and self.session.state == 'backed_up' and not installation_allowed(
+            self.session.data['kind'], self.session.data.get('model'), self.session.data.get('firmware')))
+
     def update_action(self):
         if not hasattr(self, 'action'):
             return
         busy = bool(self.worker and self.worker.isRunning())
+        if self.backup_test_only():
+            self.action.setText(self.t('test_report'))
+            self.action.setEnabled(not busy)
+            return
         state = self.session.state if self.session else 'new'
         enabled = not busy and state not in ('complete', 'deployment_incomplete')
         if not self.session:
@@ -978,14 +1009,16 @@ class Studio(QMainWindow):
         state = self.session.state if self.session else 'new'
         waiting = state in CAMERA_STEPS
         stage = self.stage(state)
+        backup_only = self.backup_test_only()
         for index, (frame, number, status) in enumerate(self.steps):
-            frame.setProperty('active', index == stage)
+            frame.setProperty('active', index == stage and not backup_only)
             frame.style().unpolish(frame)
             frame.style().polish(frame)
-            number.setText('✓' if index < stage or state == 'complete' else str(index + 1))
-            status.setText(self.t('done' if index < stage or state == 'complete' else 'current' if index == stage else 'later'))
+            done = index < stage or state == 'complete' or (backup_only and index == 0)
+            number.setText('✓' if done else str(index + 1))
+            status.setText(self.t('done' if done else 'pending' if backup_only else 'current' if index == stage else 'later'))
         title_key = state + '_title' if self.session else 'setup_title'
-        self.heading.setText(self.t(title_key))
+        self.heading.setText(self.t('backup_test_complete' if backup_only else title_key))
         self.location.setText(self.t('on_camera' if waiting else 'computer'))
         if not self.session:
             self.description.setText(self.t('setup_subtitle'))
@@ -1002,17 +1035,19 @@ class Studio(QMainWindow):
                     text.setText(steps[index][0 if self.language == 'en' else 1])
         elif state == 'new':
             self.pages.setCurrentWidget(self.setup_page)
-        elif state == 'backed_up':
+        elif state == 'backed_up' and not backup_only:
             self.pages.setCurrentWidget(self.design_page)
         else:
             self.pages.setCurrentWidget(self.result_page)
             text = STATES.get(state, STATES['deployment_incomplete'])
             self.result_message.setText(text[0 if self.language == 'en' else 1])
-            self.result_message.setVisible(state == 'deployment_incomplete')
+            self.result_message.setVisible(state == 'deployment_incomplete' or backup_only)
+            if backup_only:
+                self.result_message.setText(self.t('backup_test_keep'))
         self.pages.updateGeometry()
         self.photo_row.setVisible(state == 'backed_up')
         self.camera_panel.setVisible(state == 'new')
-        self.preview_panel.setVisible(state in ('backed_up', 'prepared', 'complete'))
+        self.preview_panel.setVisible(state in ('backed_up', 'prepared', 'complete') and not backup_only)
         self.card_panel.setVisible(bool(self.session) and state not in ('backed_up', 'deployment_incomplete'))
         self.card_hint.setText(self.t('card_hint'))
         self.ack.setVisible(bool(self.session) and state in ('new', 'wait_preflight', 'prepared', 'wait_stage1'))
@@ -1029,7 +1064,7 @@ class Studio(QMainWindow):
         self.folder_button.setVisible(bool(self.session))
         self.folder_button.setEnabled(bool(self.session))
         self.session_label.setVisible(bool(self.session))
-        self.restore_button.setVisible(bool(self.session) and state in ('backed_up', 'prepared', 'wait_stage1', 'wait_install', 'verified', 'complete'))
+        self.restore_button.setVisible(bool(self.session) and state in ('backed_up', 'prepared', 'wait_stage1', 'wait_install', 'verified', 'complete') and not backup_only)
         self.restore_button.setEnabled(bool(self.session) and state in ('backed_up', 'prepared', 'wait_stage1', 'wait_install', 'verified', 'complete') and installation_allowed(self.session.data['kind'], self.session.data.get('model'), self.session.data.get('firmware')))
         self.original_button.setVisible(bool(self.session) and 'original_sha256' in self.session.data and state != 'complete')
         restored = bool(self.session and (self.session.state == 'complete' and self.session.data.get('last_result') == 'restored'))
@@ -1055,7 +1090,7 @@ class Studio(QMainWindow):
         hints = {'new':'backup_location_hint' if not self.session else 'setup_subtitle',
                  'backed_up':'image_hint', 'prepared':'same_camera_hint',
                  'complete':'session_help_short', 'deployment_incomplete':'deployment_incomplete_subtitle'}
-        self.instruction.setText(self.t(hints.get(state, 'return_card' if waiting else 'ready_card')))
+        self.instruction.setText(self.t('same_camera_hint' if backup_only else hints.get(state, 'return_card' if waiting else 'ready_card')))
         self.instruction.setVisible(bool(self.session))
         if self.session and state in ('backed_up', 'prepared') and not installation_allowed(self.session.data['kind'], self.session.data.get('model'), self.session.data.get('firmware')):
             self.description.setText(self.t('blocked_profile'))
