@@ -1,8 +1,10 @@
 """Build on the target OS: python apps/gr_shutdown_studio/build.py"""
 from pathlib import Path
 import os
+import plistlib
 import subprocess
 import sys
+from importlib.metadata import version
 
 ROOT=Path(__file__).resolve().parents[2]
 OUTPUT=ROOT/'app-dist'
@@ -12,23 +14,27 @@ EXAMPLES=['identify-gr4-model.ttl.example','backup-gr4-family.ttl.example',
           'gr3x-urban-backup.ttl.example','gr3x-urban-restore.ttl.example']
 
 
+def check_macos_bundle(bundle, app_version, qt_version):
+    info = plistlib.loads((bundle / 'Contents/Info.plist').read_bytes())
+    if (info.get('CFBundleShortVersionString'), info.get('CFBundleVersion')) != (app_version, app_version):
+        raise RuntimeError('Packaged app version differs from the source version.')
+    qt_info = bundle / 'Contents/Frameworks/PySide6/Qt/lib/QtCore.framework/Resources/Info.plist'
+    if plistlib.loads(qt_info.read_bytes()).get('CFBundleVersion') != qt_version:
+        raise RuntimeError('The bundle contains a different Qt runtime.')
+
+
 def main():
-    args=[sys.executable,'-m','PyInstaller','--noconfirm','--clean','--windowed',
-          '--name','GR Shutdown Studio','--paths',str(ROOT),'--paths',str(ROOT/'tools'),
+    sys.path.insert(0, str(ROOT))
+    from apps.gr_shutdown_studio import __version__
+    args=[sys.executable,'-m','PyInstaller','--noconfirm','--clean',
           '--distpath',str(OUTPUT),'--workpath',str(OUTPUT/'build'),
-          '--specpath',str(OUTPUT/'spec'), '--exclude-module','tkinter']
-    for name in TOOLS:
-        args.extend(['--add-data',str(ROOT/'tools'/name)+os.pathsep+'tools',
-                     '--hidden-import',name[:-3]])
-    for name in EXAMPLES:
-        args.extend(['--add-data',str(ROOT/'examples'/name)+os.pathsep+'examples'])
-    for name in ['LICENSE','NOTICE']:
-        args.extend(['--add-data',str(ROOT/name)+os.pathsep+'.'])
-    if sys.platform=='darwin':
-        args.extend(['--osx-bundle-identifier','io.radium.grshutdownstudio'])
-    args.append(str(ROOT/'apps/gr_shutdown_studio/launcher.py'))
+          str(ROOT/'apps/gr_shutdown_studio/studio.spec')]
     env = dict(os.environ, PYINSTALLER_CONFIG_DIR=str(OUTPUT/'cache'))
     subprocess.run(args,cwd=ROOT,check=True,env=env)
+    if sys.platform == 'darwin':
+        bundle = OUTPUT/'GR Shutdown Studio.app'
+        check_macos_bundle(bundle, __version__, version('PySide6-Essentials'))
+        subprocess.run(['codesign', '--verify', '--deep', '--strict', str(bundle)], check=True)
     print('Built:',OUTPUT)
 
 if __name__=='__main__':main()
