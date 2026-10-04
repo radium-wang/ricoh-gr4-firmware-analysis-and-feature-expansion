@@ -4,6 +4,8 @@ The maintainer does not need every camera body to start an adaptation. Firmware 
 
 ## Participant workflow
 
+For first-time users, share the [step-by-step user guide](shutdown-studio-user-guide.md). Camera edition, menu version and observations are enough for the first report; both file imports are optional. An uncovered model stops after report export until a dedicated test method is reviewed.
+
 1. Open **Compatibility testing** in GR Shutdown Studio 0.3.0. Select the exact edition and the firmware shown in the camera menu. All ten catalog editions are available; **Other version** accepts versions missing from the selection. The update-history list is a convenience, not proof that an older release applies to an edition.
 2. Create a record on your computer. Record whether the factory menu has already been opened and whether a shutdown graphic is visible. “Not checked” is a valid answer; this intake does not ask you to run another model's factory script.
 3. Optionally select an existing, unpacked official `.bin` update file for that camera family. The app records its header and SHA-256. A different family is rejected. A matching version string still does not authenticate the firmware installed on the camera.
@@ -33,6 +35,8 @@ Synthetic desktop tests check backup preservation, refusal paths and script gene
 不用先买齐所有机型。维护者负责固件分析、桌面验证和审核探测脚本，网友提供必须在相机上完成的观察结果。每个特别版、每个菜单固件版本单独记录。
 
 ### 发给网友的操作步骤
+
+先发[小白操作说明](shutdown-studio-user-guide.md#中文操作说明)。第一轮只填准确机型、菜单固件及观察结果就能提交，两项文件导入都可跳过。未覆盖机型保存报告后就结束，后续等专用方法审核。
 
 1. 在 0.3.0 的侧栏打开 **适配测试**，选择准确机型及相机菜单显示的固件。10 类机型均可建立记录，列表没有的版本用“其他版本”填写。历史版本列表不代表每个特别版都能使用这些更新包。
 2. 在电脑上建立记录，记录工厂菜单是否已成功打开、关机时是否有图片。不确定就选“未检查”，不要拿另一机型的工厂脚本来试。

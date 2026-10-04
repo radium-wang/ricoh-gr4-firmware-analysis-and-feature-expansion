@@ -4,11 +4,12 @@ import sys
 
 sys.path.insert(0, str(Path(SPECPATH).parents[1]))
 from apps.gr_shutdown_studio import __version__
-from apps.gr_shutdown_studio.build import ROOT, TOOLS, EXAMPLES
+from apps.gr_shutdown_studio.build import ROOT, TOOLS, EXAMPLES, DOCUMENTS
 
 datas = [(str(ROOT/'tools'/name), 'tools') for name in TOOLS]
 datas += [(str(ROOT/'examples'/name), 'examples') for name in EXAMPLES]
 datas += [(str(ROOT/name), '.') for name in ['LICENSE', 'NOTICE']]
+datas += [(str(ROOT/name), str(Path(name).parent)) for name in DOCUMENTS]
 
 a = Analysis(
     [str(ROOT/'apps/gr_shutdown_studio/launcher.py')],

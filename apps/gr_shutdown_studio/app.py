@@ -12,9 +12,9 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QToolButton,
     QLabel, QPushButton, QLineEdit, QFileDialog, QMessageBox,
     QCheckBox, QFrame, QSlider, QDialog, QProgressBar, QRadioButton, QComboBox,
-    QButtonGroup, QScrollArea, QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView, QInputDialog,
+    QButtonGroup, QScrollArea, QSizePolicy, QTableWidget, QTableWidgetItem, QHeaderView, QInputDialog, QTextBrowser,
 )
-from .core import Session, render_image, WorkflowError
+from .core import Session, render_image, WorkflowError, ROOT
 from .compatibility import PROFILES, installation_allowed, OFFICIAL_HISTORY
 from . import __version__
 from .icons import sidebar_icon
@@ -30,9 +30,10 @@ TEXT = {
  'firmware_choose': ('Choose the version shown on your camera', '选择相机菜单显示的版本'),
  'firmware_other': ('Other version…', '其他版本…'),
  'research': ('Compatibility testing', '适配测试'),
+ 'user_guide': ('How to use / 使用说明', 'How to use / 使用说明'),
  'backup_test': ('backup test', '备份测试'),
  'backup_test_complete': ('Backup test complete', '备份测试完成'),
- 'backup_test_keep': ('Copy the entire backup folder to another drive. Save a test report to help add installation support for this combination.', '请将整个备份目录复制到另一存储位置。保存测试报告，协助验证此组合的安装兼容性。'),
+ 'backup_test_keep': ('Copy the entire backup folder to another drive and save a test report. Before ordinary camera use, use MENU-power-on to set FW Setting1 → Script → Disable.', '请将整个备份目录复制到另一存储位置，并保存测试报告。恢复普通使用前，按住 MENU 开机，将 FW Setting1 → Script 设回 Disable。'),
  'card': ('SD card', 'SD 卡'), 'choose': ('Choose…', '选择…'),
  'card_hint': ('Choose the FAT32 card root from your card reader.', '选择读卡器中 FAT32 SD 卡的根目录。'),
  'image': ('Image', '图片'), 'choose_image': ('Choose an image', '选择自己的图片'),
@@ -419,6 +420,7 @@ class Studio(QMainWindow):
         tools_layout.addWidget(self.sidebar_button('compatibility', self.show_compatibility, 'camera'))
         self.research_button = self.sidebar_button('research', self.show_research, 'document')
         tools_layout.addWidget(self.research_button)
+        tools_layout.addWidget(self.sidebar_button('user_guide', self.show_user_guide, 'document'))
         self.settings_button = self.sidebar_button('settings', self.show_settings, 'settings')
         self.settings_button.setText('Settings / 设置')
         tools_layout.addWidget(self.settings_button)
@@ -777,6 +779,24 @@ class Studio(QMainWindow):
     def show_research(self):
         from .research_ui import ResearchDialog
         self.exec_dialog(ResearchDialog(self, self.language))
+
+    def show_user_guide(self):
+        guide = (ROOT/'docs/extensions/shutdown-studio-user-guide.md').read_text(encoding='utf-8')
+        english, chinese = guide.split('## 中文操作说明', 1)
+        text = ('## 中文操作说明' + chinese if self.language == 'zh'
+                else '## English' + english.split('## English', 1)[1])
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.t('user_guide'))
+        dialog.resize(820, 660)
+        layout = QVBoxLayout(dialog)
+        browser = QTextBrowser()
+        browser.setOpenExternalLinks(False)
+        browser.setMarkdown(text)
+        layout.addWidget(browser)
+        close = QPushButton('Close / 关闭')
+        close.clicked.connect(dialog.accept)
+        layout.addWidget(close, alignment=Qt.AlignRight)
+        self.exec_dialog(dialog)
 
     def show_compatibility(self):
         dialog = QDialog(self)

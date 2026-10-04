@@ -2,6 +2,8 @@
 
 A desktop app for preparing and verifying custom Ricoh GR shutdown images on macOS and Windows.
 
+Start with the [user guide](../../docs/extensions/shutdown-studio-user-guide.md): exact button labels, camera/card steps, restoration and what to do with an uncovered model. Version 0.3.1 also includes it in **How to use / 使用说明** and as `START-HERE.txt` in download packages. The in-app guide follows the selected interface language.
+
 ## Workflow
 
 1. Choose the camera family, select the firmware shown in its menu, and create a backup folder on your computer. Select the FAT32 SD card when prompted.
@@ -61,6 +63,8 @@ Outputs: `app-dist/GR Shutdown Studio.app` on macOS, `app-dist/GR Shutdown Studi
 ## 中文
 
 图形化关机画面工具，支持 macOS 和 Windows。按界面完成卡检查、原图备份、选图裁剪、图片编码、准备安装和完整读回校验。相机开关机仍需手动完成；Urban 会自动引导两阶段安装。
+
+第一次使用请看[操作说明](../../docs/extensions/shutdown-studio-user-guide.md#中文操作说明)。0.3.1 在侧栏加入 **How to use / 使用说明**，按界面语言显示；下载包里也有 `START-HERE.txt`。没覆盖的机型先提交基本信息，没有固件文件或已读出原图就跳过这两项，不要求用户自己提取。
 
 0.3.0 的“适配测试”允许 10 类机型及其他菜单版本建立研究记录、分析本地更新包头、记录观察结果，并保留已读出原图的两份电脑副本。报告不含图片、EXIF、路径或机身标识，此入口不生成相机脚本。GR IV 主流程增加 1.04、1.03 的备份测试选项，未确认组合完成备份后导出报告，不进入安装。未知 III／IIIx 型号仍需专用、已审核的读取方法。分发与适配步骤见[社区测试流程](../../docs/extensions/community-compatibility-testing.md)。
 

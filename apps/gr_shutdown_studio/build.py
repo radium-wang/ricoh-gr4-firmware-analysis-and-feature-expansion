@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 import plistlib
+import shutil
 import subprocess
 import sys
 from importlib.metadata import version
@@ -12,6 +13,7 @@ TOOLS=['create_factory_entry.py','gr4_model.py','gr4_shutdown.py','pad_jpeg.py',
        'gr3x_urban_jpeg.py','gr3x_urban_shutdown.py','audit_shutdown_compatibility.py']
 EXAMPLES=['identify-gr4-model.ttl.example','backup-gr4-family.ttl.example',
           'gr3x-urban-backup.ttl.example','gr3x-urban-restore.ttl.example']
+DOCUMENTS=['docs/extensions/shutdown-studio-user-guide.md']
 
 
 def check_macos_bundle(bundle, app_version, qt_version):
@@ -31,6 +33,8 @@ def main():
           str(ROOT/'apps/gr_shutdown_studio/studio.spec')]
     env = dict(os.environ, PYINSTALLER_CONFIG_DIR=str(OUTPUT/'cache'))
     subprocess.run(args,cwd=ROOT,check=True,env=env)
+    guide_folder = OUTPUT/'GR Shutdown Studio' if sys.platform == 'win32' else OUTPUT
+    shutil.copyfile(ROOT/DOCUMENTS[0], guide_folder/'START-HERE.txt')
     if sys.platform == 'darwin':
         bundle = OUTPUT/'GR Shutdown Studio.app'
         check_macos_bundle(bundle, __version__, version('PySide6-Essentials'))

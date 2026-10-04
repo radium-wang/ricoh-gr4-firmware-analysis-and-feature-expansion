@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory() as directory:
             if isinstance(widget, QDialog) and widget.isVisible():
                 widget.reject()
     def exercise():
-        for action in (window.show_settings, window.show_compatibility, window.show_research) * 3:
+        for action in (window.show_settings, window.show_compatibility, window.show_research, window.show_user_guide) * 3:
             QTimer.singleShot(0, close_dialog)
             action()
         EXIT_ACTION
