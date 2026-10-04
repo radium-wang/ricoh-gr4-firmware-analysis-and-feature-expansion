@@ -4,13 +4,15 @@ A desktop app for preparing and verifying custom Ricoh GR shutdown images on mac
 
 ## Workflow
 
-1. Choose the camera family and FAT32 SD card. Create a session folder on your computer.
+1. Choose the camera family and create a backup folder on your computer. Select the FAT32 SD card when prompted.
 2. Prepare a small SD copy check. Enable Script from the camera factory menu and run once.
 3. Reconnect the card. The app verifies the copy and prepares the backup script.
 4. Run the backup once, reconnect, and save the original on your computer.
 5. Choose an image, crop or fit it, and preview the encoded 720×480 JPEG.
 6. Prepare installation, run the camera script, and reconnect for full readback verification. Urban requires a temporary-image stage first.
 7. Check the actual shutdown screen and disable Script. Keep the session to restore later.
+
+The sidebar tracks three stages: **Back up original → Choose image → Install & verify**. Each page shows only the current controls. Camera tasks appear as numbered instructions; the bottom-right button advances the current step. Camera family, framing and language use visible radio options with the operating system’s control style.
 
 Home: **Settings / 设置**. Settings dialog: **Language / 语言**. Both labels stay bilingual, with English and Chinese interfaces available.
 
@@ -45,6 +47,8 @@ Outputs: `app-dist/GR Shutdown Studio.app` on macOS, `app-dist/GR Shutdown Studi
 ## 中文
 
 图形化关机画面工具，支持 macOS 和 Windows。按界面完成卡检查、原图备份、选图裁剪、图片编码、准备安装和完整读回校验。相机开关机仍需手动完成；Urban 会自动引导两阶段安装。
+
+界面分为 **备份原图 → 选择画面 → 安装校验** 三个阶段，左侧标明进度。每页只显示当前需要的控件，相机上的操作按序号列出，右下角按钮执行下一步。相机、构图和语言选项直接展开，使用系统样式的单选控件。
 
 主页设置入口固定为 **Settings / 设置**，设置页语言选项固定为 **Language / 语言**。原图及操作记录保存到电脑，可重新打开继续操作或恢复。每台机身使用独立记录和 SD 卡；机型识别不能区分同型号的两台相机。
 

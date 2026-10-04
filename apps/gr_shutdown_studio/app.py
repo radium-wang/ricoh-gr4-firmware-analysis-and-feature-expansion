@@ -1,17 +1,17 @@
 """GR Shutdown Studio desktop interface."""
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
 from PIL import Image
 from PySide6.QtCore import Qt, QThread, Signal, QSettings, QUrl
-from PySide6.QtGui import QDesktopServices, QPixmap, QImage
+from PySide6.QtGui import QDesktopServices, QPixmap, QImage, QPalette
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QPushButton, QComboBox, QLineEdit, QFileDialog, QMessageBox,
-    QCheckBox, QFrame, QSlider, QDialog, QProgressBar,
+    QLabel, QPushButton, QLineEdit, QFileDialog, QMessageBox,
+    QCheckBox, QFrame, QSlider, QDialog, QProgressBar, QRadioButton,
+    QButtonGroup, QScrollArea, QSizePolicy,
 )
 from .core import Session, render_image, WorkflowError
 
@@ -54,7 +54,7 @@ TEXT = {
  'confirm_camera': ('Confirm the camera and Script setting before preparing the card.', '准备卡前，请确认使用同一台相机并已开启 Script。'),
  'confirm_display': ('Check the real shutdown screen and disable Script first.', '请先检查相机实际关机画面，并关闭 Script。'),
  'original_confirm': ('Does the backed-up image open correctly and represent the original you want to keep? An already modified camera cannot provide a lost factory original.', '请确认备份图片可正常打开，并且是你要保留的原图。已经修改且未备份的出厂原图无法找回。'),
- 'restore_confirm': ('Prepare a restore script for this session’s original? Use the same camera and run it once after safely ejecting the card.', '准备恢复此记录保存的原图？请使用同一台相机，安全弹出卡后正常开机执行一次。'),
+ 'restore_confirm': ('This backup belongs to its original camera. Confirm you are using that same body. After preparing the card, safely eject it and power on normally once to restore.', '请确认使用此备份对应的原机身。准备 SD 卡后，安全弹出卡，插回相机正常开机一次，恢复保存的原图。'),
  'backup': ('Back up', '备份原图'), 'design': ('Make it yours', '选择画面'), 'verify': ('Install & verify', '安装与校验'),
  'instructions': ('Next step', '下一步'),
  'setup_help': ('Copy the generated entry files to the card using Prepare card check. Hold MENU while powering on to enter the factory menu; enable only Script. Then start normally once, wait for storage activity to stop, shut down, and reconnect the card.', '点“准备 SD 卡检查”会写入入口文件。按住 MENU 开机进入工厂菜单，仅开启 Script。随后正常开机一次，等读写结束再关机，把卡接回电脑。'),
@@ -62,6 +62,96 @@ TEXT = {
  'support': ('GR IV-family selection is automatic after backup. Urban support is limited to 1.60 and its verified original. The app does not format cards or flash firmware.', '备份后自动识别 GR IV 系列机型。Urban 仅支持 1.60 及已验证的原图。App 不格式化卡，不刷写固件。'),
  'leave_busy': ('Wait for the current operation to finish before closing.', '请等当前操作结束再关闭。'),
 }
+TEXT.update({
+ 'subtitle': ('Custom shutdown images for Ricoh GR', 'Ricoh GR 关机画面工具'),
+ 'backup': ('Back up original', '备份原图'), 'design': ('Choose image', '选择画面'),
+ 'verify': ('Install & verify', '安装校验'),
+ 'backup_detail': ('Keep a copy on your computer', '将相机原图保存到电脑'),
+ 'design_detail': ('Choose and frame your photo', '选图并调整构图'),
+ 'verify_detail': ('Run on camera, then check', '相机执行，再读回核对'),
+ 'workflow': ('WORKFLOW', '操作流程'),
+ 'current': ('Current step', '当前步骤'), 'done': ('Done', '已完成'), 'later': ('Later', '待完成'),
+ 'computer': ('ON YOUR COMPUTER', '在电脑上'), 'on_camera': ('ON YOUR CAMERA', '在相机上'),
+ 'backup_location': ('Original backup', '原图备份'),
+ 'backup_location_hint': ('Choose a folder on your computer to keep the original and your progress.', '选择电脑上的文件夹，保存原图和操作进度。'),
+ 'start': ('Choose backup folder…', '选择备份文件夹…'),
+ 'session_help_short': ('You can close the app and resume from this folder.', '可关闭 App，之后打开此记录继续。'),
+ 'framing': ('Framing', '构图方式'),
+ 'ack': ('This session and SD card are for the same camera.', '我确认此记录和 SD 卡用于同一台相机。'),
+ 'confirm_camera': ('Confirm that this session and card are for the same camera.', '请确认此记录和 SD 卡用于同一台相机。'),
+ 'display': ('The screen looks correct. Script is now disabled.', '关机画面显示正确，Script 已设回 Disable。'),
+ 'beta': ('Preview · camera testing pending', '预览版 · 待实机验证'),
+ 'card_ready': ('The card is ready. Follow these steps on the camera.', 'SD 卡已准备好，请按下面顺序操作相机。'),
+ 'return_card': ('After the camera steps, reconnect the card to verify.', '完成相机操作后，把 SD 卡接回电脑校验。'),
+ 'ready_card': ('Reconnect the same SD card before continuing.', '继续前，请将同一张 SD 卡接回电脑。'),
+ 'setup_title': ('Back up your original first', '先备份相机里的原图'),
+ 'setup_subtitle': ('Keep the original so you can restore it later.', '将原图留在电脑上，之后随时可以恢复。'),
+ 'new_title': ('Prepare the SD card check', '准备 SD 卡检查'),
+ 'new_subtitle': ('First, check that the camera can run the card script.', '先确认相机能够执行卡上的脚本，再备份原图。'),
+ 'wait_preflight_title': ('Run the check on your camera', '在相机上执行检查'),
+ 'wait_backup_title': ('Back up on your camera', '在相机上执行备份'),
+ 'backed_up_title': ('Choose your shutdown image', '选择你的关机画面'),
+ 'backed_up_subtitle': ('Your original is safe. Choose a photo and adjust its framing.', '原图已保存。选择图片，调整画面范围。'),
+ 'prepared_title': ('Ready to install', '画面已准备好'),
+ 'prepared_subtitle': ('This is the actual encoded image. Check it before continuing.', '下方是处理后的实际图片，确认后准备安装。'),
+ 'wait_stage1_title': ('Check the temporary image', '执行临时图检查'),
+ 'wait_install_title': ('Install on your camera', '在相机上安装画面'),
+ 'verified_title': ('Confirm the shutdown screen', '确认相机上的关机画面'),
+ 'verified_subtitle': ('The readback matches. Finish the final check on your camera.', '读回内容一致。请完成最后的实机显示检查。'),
+ 'wait_restore_title': ('Restore on your camera', '在相机上恢复原图'),
+ 'restored_title': ('Confirm the restored screen', '确认恢复后的画面'),
+ 'restored_subtitle': ('The readback matches your saved original.', '读回内容与保存的原图一致。'),
+ 'complete_title': ('All done', '操作完成'),
+ 'complete_subtitle': ('Keep your backup folder. You can restore the original from it later.', '保留电脑上的备份文件夹，以后可用它恢复原图。'),
+ 'deployment_incomplete_title': ('Card preparation interrupted', 'SD 卡准备中断'),
+ 'deployment_incomplete_subtitle': ('Keep the card and session files. Do not run the camera script.', '请保留卡和记录中的文件，暂不执行相机脚本。'),
+ 'image': ('Your photo', '你的图片'), 'choose_image': ('Choose photo…', '选择图片…'),
+ 'folder': ('Show in folder', '打开备份文件夹'),
+ 'original_preview': ('Saved original · 720 × 480', '已保存的原图 · 720 × 480'),
+ 'preview': ('Shutdown screen · 720 × 480', '关机画面 · 720 × 480'),
+ 'review_backup': ('View original backup', '查看原图备份'),
+ 'same_camera_hint': ('Keep this backup with its original camera.', '请让此备份始终对应原来的机身。'),
+})
+
+# Camera work is deliberately separate from computer work. Each waiting screen
+# gives the exact sequence, rather than mixing every stage into a single form.
+CAMERA_STEPS = {
+ 'wait_preflight': [
+   ('Safely eject the card and insert it into the camera.', '安全弹出 SD 卡，插入相机。'),
+   ('Hold MENU and power on. Enable only Script, then power off.', '按住 MENU 开机，仅将 Script 设为 Enable，然后关机。'),
+   ('Power on normally. Wait for card activity to stop, then power off.', '正常开机，等待卡读写结束，再关机。'),
+   ('Reconnect the card to this computer and check the result below.', '把卡接回电脑，点击下方按钮校验。'),
+ ],
+ 'wait_backup': [
+   ('Safely eject the card and insert it into the same camera.', '安全弹出卡，插回同一台相机。'),
+   ('Power on normally once. Wait for card activity to stop, then power off.', '正常开机一次，等待卡读写结束，再关机。'),
+   ('Reconnect the card. Save and inspect the original on this computer.', '把卡接回电脑，保存并查看原图。'),
+ ],
+ 'wait_stage1': [
+   ('Safely eject the card and insert it into the same Urban camera.', '安全弹出卡，插回同一台 Urban 相机。'),
+   ('Power on normally once. Wait for card activity to stop, then power off.', '正常开机一次，等待卡读写结束，再关机。'),
+   ('Reconnect the card. The app must verify the temporary image before installation.', '把卡接回电脑，临时图校验通过后才会准备安装。'),
+ ],
+ 'wait_install': [
+   ('Safely eject the card and insert it into the same camera.', '安全弹出卡，插回同一台相机。'),
+   ('Power on normally once. Wait for card activity to stop, then power off.', '正常开机一次，等待卡读写结束，再关机。'),
+   ('Look at the shutdown screen. Reconnect the card for verification.', '查看实际关机画面，再把卡接回电脑校验。'),
+ ],
+ 'wait_restore': [
+   ('Safely eject the card and insert it into the original camera.', '安全弹出卡，插回此备份对应的相机。'),
+   ('Power on normally once. Wait for card activity to stop, then power off.', '正常开机一次，等待卡读写结束，再关机。'),
+   ('Reconnect the card to verify the restored original.', '把卡接回电脑，核对恢复后的原图。'),
+ ],
+ 'verified': [
+   ('Hold MENU while powering on. Set Script to Disable.', '按住 MENU 开机，将 Script 设回 Disable。'),
+   ('Power off and confirm the shutdown image looks correct.', '关机，确认实际关机画面显示正确。'),
+ ],
+ 'restored': [
+   ('Hold MENU while powering on. Set Script to Disable.', '按住 MENU 开机，将 Script 设回 Disable。'),
+   ('Power off and confirm the original shutdown image is back.', '关机，确认原始关机画面已恢复。'),
+ ],
+}
+
 STATES = {
  'new': ('Create a computer backup session, then prepare a small SD copy check.', '新建电脑端记录，再准备一次小文件 SD 复制检查。'),
  'wait_preflight': ('Safely eject the card. Hold MENU while powering on, enable only Script, then shut down. Start normally once to run the check. When storage activity stops, shut down and reconnect the card.', '安全弹出卡。按住 MENU 开机，在工厂菜单仅开启 Script 后关机。再正常开机执行检查，等读写结束后关机，把卡接回电脑。'),
@@ -93,6 +183,95 @@ class Worker(QThread):
             self.success.emit()
 
 
+class Choice(QWidget):
+    """Two visible alternatives using the platform's radio-button style."""
+    currentIndexChanged = Signal(int)
+
+    def __init__(self, keys, translate, vertical=False):
+        super().__init__()
+        self.keys = keys
+        self.group = QButtonGroup(self)
+        self.options = []
+        row = QVBoxLayout(self) if vertical else QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(12)
+        for index, key in enumerate(keys):
+            button = QRadioButton(translate(key))
+            self.group.addButton(button, index)
+            self.options.append(button)
+            row.addWidget(button)
+        if not vertical:
+            row.addStretch()
+        self.options[0].setChecked(True)
+        self.group.idClicked.connect(self.currentIndexChanged.emit)
+
+    def currentIndex(self):
+        return self.group.checkedId()
+
+    def setCurrentIndex(self, index):
+        if index != self.currentIndex():
+            self.options[index].setChecked(True)
+            self.currentIndexChanged.emit(index)
+
+    def translate(self, translate):
+        for button, key in zip(self.options, self.keys):
+            button.setText(translate(key))
+
+
+class StepPages(QWidget):
+    """Only the visible step participates in layout sizing."""
+    def __init__(self):
+        super().__init__()
+        self.current = None
+        self.pages = []
+        self.box = QVBoxLayout(self)
+        self.box.setContentsMargins(0, 0, 0, 0)
+
+    def addWidget(self, page):
+        self.pages.append(page)
+        self.box.addWidget(page)
+        page.hide()
+        if self.current is None:
+            self.setCurrentWidget(page)
+
+    def currentWidget(self):
+        return self.current
+
+    def setCurrentWidget(self, page):
+        if self.current is not None:
+            self.current.hide()
+        self.current = page
+        page.show()
+        self.updateGeometry()
+
+
+class Preview(QLabel):
+    """Keep a true 3:2 canvas as the window changes size."""
+    def __init__(self):
+        super().__init__()
+        self.source = None
+        self.setAlignment(Qt.AlignCenter)
+        self.setFixedSize(450, 300)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setObjectName('preview')
+
+    def setPixmap(self, pixmap):
+        self.source = pixmap
+        self.scale_image()
+
+    def scale_image(self):
+        if self.source:
+            super().setPixmap(self.source.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
+    def clear(self):
+        self.source = None
+        super().clear()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.scale_image()
+
+
 class Studio(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -101,8 +280,8 @@ class Studio(QMainWindow):
         self.session = None
         self.image = None
         self.worker = None
-        self.resize(1080, 820)
-        self.setMinimumSize(940, 760)
+        self.resize(1060, 800)
+        self.setMinimumSize(960, 720)
         self.setWindowTitle('GR Shutdown Studio')
         self.build()
         self.translate()
@@ -129,112 +308,348 @@ class Studio(QMainWindow):
     def build(self):
         root = QWidget()
         self.setCentralWidget(root)
-        outer = QVBoxLayout(root)
-        outer.setContentsMargins(32, 24, 32, 24)
-        outer.setSpacing(16)
-        header = QHBoxLayout()
-        brand = QVBoxLayout()
-        self.label(brand, 'title', 'brand')
-        self.label(brand, 'subtitle', 'subtitle')
-        header.addLayout(brand, 1)
-        # Always bilingual so this entry remains discoverable after switching languages.
+        palette = root.palette()
+        palette.setColor(QPalette.Window, palette.color(QPalette.Base))
+        root.setPalette(palette)
+        root.setAutoFillBackground(True)
+        outer = QHBoxLayout(root)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        sidebar = QFrame()
+        sidebar.setObjectName('sidebar')
+        sidebar.setFixedWidth(228)
+        side = QVBoxLayout(sidebar)
+        side.setContentsMargins(20, 28, 20, 20)
+        side.setSpacing(16)
+        logo = QLabel('GR')
+        logo.setObjectName('brand')
+        side.addWidget(logo)
+        name = QLabel('Shutdown Studio')
+        name.setObjectName('app_name')
+        side.addWidget(name)
+        side.addSpacing(16)
+        self.label(side, 'workflow', 'eyebrow')
+        self.steps = []
+        for index, key in enumerate(['backup', 'design', 'verify']):
+            frame = QFrame()
+            frame.setObjectName('step')
+            row = QHBoxLayout(frame)
+            row.setContentsMargins(10, 12, 10, 12)
+            row.setSpacing(10)
+            number = QLabel(str(index + 1))
+            number.setObjectName('step_number')
+            number.setFixedSize(25, 25)
+            number.setAlignment(Qt.AlignCenter)
+            row.addWidget(number, alignment=Qt.AlignTop)
+            labels = QVBoxLayout()
+            labels.setSpacing(4)
+            self.label(labels, key, 'step_title')
+            status = QLabel()
+            status.setObjectName('step_status')
+            labels.addWidget(status)
+            row.addLayout(labels, 1)
+            self.steps.append((frame, number, status))
+            side.addWidget(frame)
+        side.addStretch()
+        self.session_label = QLabel()
+        self.session_label.setObjectName('hint')
+        self.session_label.setWordWrap(True)
+        side.addWidget(self.session_label)
+        self.folder_button = self.button('folder', self.show_folder)
+        side.addWidget(self.folder_button)
+        self.new_button = self.button('new', self.new_session)
+        side.addWidget(self.new_button)
+        self.open_button = self.button('open', self.open_session)
+        side.addWidget(self.open_button)
+        side.addSpacing(8)
         self.settings_button = QPushButton('Settings / 设置')
         self.settings_button.clicked.connect(self.show_settings)
-        header.addWidget(self.settings_button, alignment=Qt.AlignTop)
-        outer.addLayout(header)
-        steps = QHBoxLayout()
-        for n, key in enumerate(['backup','design','verify'],1):
-            frame=QFrame();frame.setObjectName('step')
-            row=QHBoxLayout(frame);row.addWidget(QLabel(f'0{n}'))
-            self.label(row,key);steps.addWidget(frame)
-        outer.addLayout(steps)
-        body=QHBoxLayout();body.setSpacing(22)
-        controls=QVBoxLayout();controls.setSpacing(10)
-        self.label(controls,'camera','section')
-        self.camera=QComboBox();controls.addWidget(self.camera)
-        self.label(controls,'card','section')
-        cardrow=QHBoxLayout();self.card_input=QLineEdit();self.card_input.setReadOnly(True)
-        cardrow.addWidget(self.card_input,1);cardrow.addWidget(self.button('choose',self.choose_card))
-        controls.addLayout(cardrow)
-        self.label(controls,'card_hint','hint')
-        self.label(controls,'image','section')
-        controls.addWidget(self.button('choose_image',self.choose_image))
-        self.image_name=QLabel('—');self.image_name.setObjectName('hint');controls.addWidget(self.image_name)
-        self.mode=QComboBox();self.mode.currentIndexChanged.connect(self.preview);controls.addWidget(self.mode)
-        for key in ['horizontal','vertical']:
-            self.label(controls,key,'hint')
-            slider=QSlider(Qt.Horizontal);slider.setRange(0,100);slider.setValue(50)
-            slider.valueChanged.connect(self.preview);setattr(self,key,slider);controls.addWidget(slider)
-        self.label(controls,'session','section')
-        sessionrow=QHBoxLayout();self.new_button=self.button('new',self.new_session);sessionrow.addWidget(self.new_button)
-        self.open_button=self.button('open',self.open_session);sessionrow.addWidget(self.open_button)
-        controls.addLayout(sessionrow)
-        self.session_label=QLabel('—');self.session_label.setWordWrap(True);self.session_label.setObjectName('hint');controls.addWidget(self.session_label)
-        self.folder_button=self.button('folder',self.show_folder);controls.addWidget(self.folder_button)
-        self.ack=QCheckBox();self.ack.setProperty('text_key','ack');self.ack.setStyleSheet('font-size:11px;');controls.addWidget(self.ack)
-        controls.addStretch()
-        body.addLayout(controls,4)
-        right=QVBoxLayout();right.setSpacing(10)
-        self.label(right,'preview','section')
-        self.preview_label=QLabel();self.preview_label.setObjectName('preview')
-        self.preview_label.setAlignment(Qt.AlignCenter);self.preview_label.setMinimumSize(480,320)
-        right.addWidget(self.preview_label)
-        self.badge=QLabel();self.badge.setObjectName('badge');right.addWidget(self.badge)
-        self.label(right,'instructions','section')
-        self.instruction=QLabel();self.instruction.setWordWrap(True);self.instruction.setObjectName('instructions');right.addWidget(self.instruction)
-        self.action=QPushButton();self.action.setObjectName('primary');self.action.clicked.connect(self.next_step);right.addWidget(self.action)
-        self.restore_button=self.button('restore',self.restore);right.addWidget(self.restore_button)
-        self.display=QCheckBox();self.display.setProperty('text_key','display');right.addWidget(self.display)
-        self.progress=QProgressBar();self.progress.setRange(0,0);self.progress.hide();right.addWidget(self.progress)
-        right.addStretch()
-        body.addLayout(right,5);outer.addLayout(body,1)
-        self.label(outer,'beta','hint')
-        self.setStyleSheet('''
-            QMainWindow, QWidget { background:#f6f5f1; color:#242726; font-size:13px; }
-            QLabel#brand { font-size:27px; font-weight:700; }
-            QLabel#subtitle { color:#727974; font-size:14px; }
-            QLabel#section { font-size:13px; font-weight:600; margin-top:4px; }
-            QLabel#hint { color:#777e79; font-size:11px; }
-            QFrame#step { background:#eaece6; border-radius:8px; }
-            QFrame#step QLabel { background:transparent; }
-            QPushButton { background:white; border:1px solid #d9ded6; border-radius:7px; padding:10px 12px; }
-            QPushButton:hover { border-color:#3e6b51; background:#eff4ee; }
-            QPushButton:disabled { color:#afb5ae; background:#eeefea; }
-            QPushButton#primary { background:#294e3b; color:white; border:0; font-weight:600; padding:14px; }
-            QPushButton#primary:disabled { background:#adb9af; }
-            QLineEdit, QComboBox { background:white; border:1px solid #d9ded6; border-radius:6px; padding:9px; }
-            QLabel#preview { background:#191e1b; color:#b6c0b9; border-radius:12px; font-size:19px; }
-            QLabel#badge { color:#2f6946; font-size:12px; }
-            QLabel#instructions { line-height:1.5; color:#555f57; min-height:52px; }
-            QSlider::groove:horizontal { background:#d9ded6; height:4px; border-radius:2px; }
-            QSlider::handle:horizontal { background:#365c44; width:14px; margin:-5px 0; border-radius:7px; }
-            QProgressBar { background:#e6eae3; border:0; border-radius:4px; height:7px; }
-            QProgressBar::chunk { background:#365c44; }
-        ''')
+        side.addWidget(self.settings_button)
+        self.label(side, 'beta', 'hint')
+        outer.addWidget(sidebar)
+
+        main = QVBoxLayout()
+        main.setContentsMargins(32, 28, 32, 20)
+        main.setSpacing(18)
+        self.location = QLabel()
+        self.location.setObjectName('eyebrow')
+        main.addWidget(self.location)
+        self.heading = QLabel()
+        self.heading.setObjectName('heading')
+        self.heading.setWordWrap(True)
+        main.addWidget(self.heading)
+        self.description = QLabel()
+        self.description.setObjectName('description')
+        self.description.setWordWrap(True)
+        main.addWidget(self.description)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        content = QWidget()
+        body = QVBoxLayout(content)
+        body.setContentsMargins(0, 0, 8, 0)
+        body.setSpacing(20)
+        self.pages = StepPages()
+        self.pages.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
+        # Computer setup: no image editing or installation controls yet.
+        self.setup_page = QWidget()
+        setup = QVBoxLayout(self.setup_page)
+        setup.setContentsMargins(0, 0, 0, 0)
+        setup.setSpacing(18)
+        self.camera_panel = QWidget()
+        camera_layout = QVBoxLayout(self.camera_panel)
+        camera_layout.setContentsMargins(0, 0, 0, 0)
+        camera_layout.setSpacing(12)
+        self.label(camera_layout, 'camera', 'section')
+        self.camera = Choice(['family', 'urban'], self.t, vertical=True)
+        camera_layout.addWidget(self.camera)
+        setup.addWidget(self.camera_panel)
+        self.backup_panel = QFrame()
+        self.backup_panel.setObjectName('panel')
+        backup = QVBoxLayout(self.backup_panel)
+        backup.setContentsMargins(18, 18, 18, 18)
+        backup.setSpacing(8)
+        self.label(backup, 'backup_location', 'section')
+        self.backup_path = QLabel()
+        self.backup_path.setWordWrap(True)
+        backup.addWidget(self.backup_path)
+        self.label(backup, 'session_help_short', 'hint')
+        setup.addWidget(self.backup_panel)
+        setup.addStretch()
+        self.pages.addWidget(self.setup_page)
+
+        # Only this page exposes framing controls.
+        self.design_page = QWidget()
+        design = QVBoxLayout(self.design_page)
+        design.setContentsMargins(0, 0, 0, 0)
+        design.setSpacing(14)
+        photo_row = QHBoxLayout()
+        self.image_button = self.button('choose_image', self.choose_image)
+        photo_row.addWidget(self.image_button)
+        self.image_name = QLabel('—')
+        self.image_name.setObjectName('hint')
+        photo_row.addWidget(self.image_name, 1)
+        self.label(design, 'framing', 'section')
+        self.mode = Choice(['crop', 'contain'], self.t)
+        self.mode.currentIndexChanged.connect(self.preview)
+        design.addWidget(self.mode)
+        self.position_panel = QWidget()
+        positions = QGridLayout(self.position_panel)
+        positions.setContentsMargins(0, 0, 0, 0)
+        positions.setHorizontalSpacing(16)
+        positions.setVerticalSpacing(10)
+        for row, key in enumerate(['horizontal', 'vertical']):
+            label = QLabel()
+            label.setProperty('text_key', key)
+            label.setObjectName('hint')
+            positions.addWidget(label, row, 0)
+            slider = QSlider(Qt.Horizontal)
+            slider.setRange(0, 100)
+            slider.setValue(50)
+            slider.valueChanged.connect(self.preview)
+            setattr(self, key, slider)
+            positions.addWidget(slider, row, 1)
+        design.addWidget(self.position_panel)
+        self.pages.addWidget(self.design_page)
+
+        self.camera_page = QWidget()
+        camera_steps = QVBoxLayout(self.camera_page)
+        camera_steps.setContentsMargins(0, 0, 0, 0)
+        camera_steps.setSpacing(14)
+        self.task_rows = []
+        for index in range(4):
+            frame = QFrame()
+            frame.setObjectName('task')
+            row = QHBoxLayout(frame)
+            row.setContentsMargins(16, 14, 16, 14)
+            row.setSpacing(14)
+            number = QLabel(str(index + 1))
+            number.setObjectName('task_number')
+            number.setAlignment(Qt.AlignCenter)
+            number.setFixedSize(24, 24)
+            row.addWidget(number, alignment=Qt.AlignTop)
+            text = QLabel()
+            text.setWordWrap(True)
+            row.addWidget(text, 1)
+            camera_steps.addWidget(frame)
+            self.task_rows.append((frame, text))
+        camera_steps.addStretch()
+        self.pages.addWidget(self.camera_page)
+
+        self.result_page = QWidget()
+        result = QVBoxLayout(self.result_page)
+        result.setContentsMargins(0, 0, 0, 0)
+        result.setSpacing(12)
+        self.result_message = QLabel()
+        self.result_message.setWordWrap(True)
+        result.addWidget(self.result_message)
+        self.pages.addWidget(self.result_page)
+        body.addWidget(self.pages)
+
+        self.preview_panel = QWidget()
+        preview = QVBoxLayout(self.preview_panel)
+        preview.setContentsMargins(0, 0, 0, 0)
+        preview.setSpacing(10)
+        self.photo_row = QWidget()
+        self.photo_row.setLayout(photo_row)
+        preview.addWidget(self.photo_row)
+        self.preview_caption = QLabel()
+        self.preview_caption.setObjectName('hint')
+        preview.addWidget(self.preview_caption)
+        self.preview_label = Preview()
+        preview.addWidget(self.preview_label, alignment=Qt.AlignHCenter)
+        self.badge = QLabel()
+        self.badge.setObjectName('hint')
+        self.badge.setWordWrap(True)
+        self.badge.hide()
+        self.original_button = self.button('review_backup', self.show_original)
+        side.insertWidget(side.indexOf(self.folder_button) + 1, self.original_button)
+        body.insertWidget(0, self.preview_panel)
+
+        self.card_panel = QWidget()
+        card = QVBoxLayout(self.card_panel)
+        card.setContentsMargins(0, 0, 0, 0)
+        card.setSpacing(8)
+        self.label(card, 'card', 'section')
+        row = QHBoxLayout()
+        self.card_input = QLineEdit()
+        self.card_input.setReadOnly(True)
+        self.card_input.setPlaceholderText(self.t('card_hint'))
+        self.card_input.textChanged.connect(self.update_action)
+        row.addWidget(self.card_input, 1)
+        self.card_button = self.button('choose', self.choose_card)
+        row.addWidget(self.card_button)
+        card.addLayout(row)
+        self.card_hint = QLabel()
+        self.card_hint.setObjectName('hint')
+        self.card_hint.setWordWrap(True)
+        card.addWidget(self.card_hint)
+        body.addWidget(self.card_panel)
+        self.ack = QCheckBox()
+        self.ack.setProperty('text_key', 'ack')
+        self.ack.toggled.connect(self.update_action)
+        body.addWidget(self.ack)
+        self.display = QCheckBox()
+        self.display.setProperty('text_key', 'display')
+        self.display.toggled.connect(self.update_action)
+        body.addWidget(self.display)
+        body.addStretch()
+        scroll.setWidget(content)
+        main.addWidget(scroll, 1)
+
+        # One default action, in the same place at every stage.
+        self.instruction = QLabel()
+        self.instruction.setWordWrap(True)
+        self.instruction.setObjectName('hint')
+        main.addWidget(self.instruction)
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)
+        self.progress.hide()
+        main.addWidget(self.progress)
+        line = QFrame()
+        line.setObjectName('separator')
+        line.setFixedHeight(1)
+        main.addWidget(line)
+        footer = QHBoxLayout()
+        self.restore_button = self.button('restore', self.restore)
+        footer.addWidget(self.restore_button)
+        footer.addStretch()
+        self.action = QPushButton()
+        self.action.setDefault(True)
+        self.action.clicked.connect(self.next_step)
+        footer.addWidget(self.action)
+        main.addLayout(footer)
+        outer.addLayout(main, 1)
+
+        # Style only surfaces and typography. Leave buttons, choices, sliders,
+        # text fields and popup menus to Qt's macOS / Windows platform style.
+        dark = self.palette().color(QPalette.Window).lightness() < 128
+        surface = '#272729' if dark else '#f2f2f4'
+        secondary = '#aaaaaf' if dark else '#6c6c72'
+        selected = '#2c4260' if dark else '#e2ecfb'
+        border = '#404044' if dark else '#dedee3'
+        self.setStyleSheet(f"""
+            QFrame#separator {{ background:{border}; }}
+            QFrame#sidebar {{ background:{surface}; border-right:1px solid {border}; }}
+            QLabel#brand {{ font-size:32px; font-weight:700; }}
+            QLabel#app_name {{ font-size:14px; font-weight:600; }}
+            QLabel#heading {{ font-size:25px; font-weight:600; }}
+            QLabel#description {{ color:{secondary}; font-size:13px; }}
+            QLabel#eyebrow {{ color:{secondary}; font-size:11px; font-weight:600; }}
+            QLabel#section, QLabel#step_title {{ font-weight:600; }}
+            QLabel#hint, QLabel#step_status {{ color:{secondary}; font-size:12px; }}
+            QFrame#step {{ border-radius:8px; }}
+            QFrame#step[active="true"] {{ background:{selected}; }}
+            QLabel#step_number, QLabel#task_number {{ border:1px solid {border}; border-radius:12px; }}
+            QFrame#panel, QFrame#task {{ background:{surface}; border-radius:8px; }}
+            QLabel#preview {{ background:#141416; color:#b4b4b9; border-radius:8px; font-size:16px; }}
+        """)
 
     def translate(self):
         for widget in self.findChildren(QWidget):
-            key=widget.property('text_key')
-            if key and hasattr(widget,'setText'):
+            key = widget.property('text_key')
+            if key and hasattr(widget, 'setText'):
                 widget.setText(self.t(key))
-        index=self.camera.currentIndex()
-        self.camera.clear();self.camera.addItems([self.t('family'),self.t('urban')]);self.camera.setCurrentIndex(max(index,0))
-        index=self.mode.currentIndex()
-        self.mode.blockSignals(True);self.mode.clear();self.mode.addItems([self.t('crop'),self.t('contain')]);self.mode.setCurrentIndex(max(index,0));self.mode.blockSignals(False)
+        self.camera.translate(self.t)
+        self.mode.translate(self.t)
+        self.card_input.setPlaceholderText(self.t('card_hint'))
 
     def show_settings(self):
-        dialog=QDialog(self);dialog.setWindowTitle('Settings / 设置');dialog.setMinimumWidth(420)
-        layout=QVBoxLayout(dialog);layout.setContentsMargins(24,24,24,24);layout.setSpacing(16)
+        dialog = QDialog(self)
+        dialog.setWindowTitle('Settings / 设置')
+        dialog.setWindowModality(Qt.WindowModal)
+        if sys.platform == 'darwin':
+            dialog.setWindowFlag(Qt.Sheet)
+        dialog.setMinimumWidth(400)
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(18)
         layout.addWidget(QLabel('Language / 语言'))
-        language=QComboBox();language.addItems(['English','简体中文']);language.setCurrentIndex(0 if self.language=='en' else 1);layout.addWidget(language)
-        support=QLabel(self.t('support'));support.setWordWrap(True);layout.addWidget(support)
-        setup=QLabel(self.t('setup_help'));setup.setWordWrap(True);layout.addWidget(setup)
-        save=QPushButton('Save / 保存');layout.addWidget(save)
+        languages = QButtonGroup(dialog)
+        row = QHBoxLayout()
+        for index, label in enumerate(['English', '简体中文']):
+            button = QRadioButton(label)
+            languages.addButton(button, index)
+            button.setChecked(index == (0 if self.language == 'en' else 1))
+            row.addWidget(button)
+        row.addStretch()
+        layout.addLayout(row)
+        support = QLabel(self.t('support'))
+        support.setWordWrap(True)
+        layout.addWidget(support)
+        buttons = QHBoxLayout()
+        buttons.addStretch()
+        cancel = QPushButton('Cancel / 取消')
+        cancel.clicked.connect(dialog.reject)
+        buttons.addWidget(cancel)
+        save = QPushButton('Save / 保存')
+        save.setDefault(True)
+        buttons.addWidget(save)
+        layout.addLayout(buttons)
         def apply():
-            self.language='en' if language.currentIndex()==0 else 'zh'
-            self.settings.setValue('language',self.language)
-            self.translate();self.refresh();dialog.accept()
+            self.language = 'en' if languages.checkedId() == 0 else 'zh'
+            self.settings.setValue('language', self.language)
+            self.translate()
+            self.refresh()
+            dialog.accept()
         save.clicked.connect(apply)
+        dialog.exec()
+
+    def show_original(self):
+        if not self.session:
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.t('review_backup'))
+        layout = QVBoxLayout(dialog)
+        label = QLabel()
+        label.setPixmap(QPixmap(str(self.session.directory / 'original.jpg')).scaled(600, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        layout.addWidget(label)
+        self.label(layout, 'same_camera_hint', 'hint').setText(self.t('same_camera_hint'))
+        close = QPushButton('OK')
+        close.clicked.connect(dialog.accept)
+        layout.addWidget(close, alignment=Qt.AlignRight)
         dialog.exec()
 
     def choose_card(self):
@@ -244,9 +659,12 @@ class Studio(QMainWindow):
     def choose_image(self):
         path,_=QFileDialog.getOpenFileName(self,self.t('choose_image'),'','Images (*.jpg *.jpeg *.png *.webp *.tif *.tiff *.bmp)')
         if path:
-            self.image=Path(path);self.image_name.setText(self.image.name);self.preview()
+            self.image=Path(path);self.image_name.setText(self.image.name);self.preview();self.update_action()
 
     def preview(self):
+        self.position_panel.setVisible(self.mode.currentIndex() == 0)
+        if self.preview_panel.isHidden():
+            return
         try:
             if self.session and (self.session.state in ('wait_restore','restored') or self.session.state=='complete' and self.session.data.get('last_result')=='restored'):
                 with Image.open(self.session.directory/'original.jpg') as image:result=image.convert('RGB')
@@ -259,7 +677,7 @@ class Studio(QMainWindow):
             else:
                 self.preview_label.clear();self.preview_label.setText(self.t('empty_preview'));return
             raw=result.tobytes();qimage=QImage(raw,result.width,result.height,result.width*3,QImage.Format_RGB888).copy()
-            pix=QPixmap.fromImage(qimage).scaled(480,320,Qt.KeepAspectRatio,Qt.SmoothTransformation)
+            pix=QPixmap.fromImage(qimage)
             self.preview_label.setPixmap(pix)
         except Exception as error:
             self.error(str(error))
@@ -271,6 +689,7 @@ class Studio(QMainWindow):
         name='GR-Shutdown-'+datetime.now().strftime('%Y%m%d-%H%M%S')
         try:
             self.session=Session.create(Path(parent)/name,'FAMILY' if self.camera.currentIndex()==0 else 'URBAN')
+            self.image=None;self.image_name.setText('—')
             self.ack.setChecked(False);self.display.setChecked(False);self.refresh()
         except Exception as error:self.error(str(error))
 
@@ -280,6 +699,7 @@ class Studio(QMainWindow):
         try:
             self.session=Session(Path(path).parent)
             self.camera.setCurrentIndex(0 if self.session.data['kind']=='FAMILY' else 1)
+            self.image=None;self.image_name.setText('—')
             self.ack.setChecked(False);self.display.setChecked(False);self.refresh()
         except Exception as error:self.error(str(error))
 
@@ -305,12 +725,15 @@ class Studio(QMainWindow):
     def failed(self,message):self.refresh();self.error(message)
 
     def busy(self,value):
-        for widget in [self.action,self.restore_button,self.new_button,self.open_button,self.settings_button,self.camera,self.mode,self.horizontal,self.vertical,self.ack,self.display]:widget.setEnabled(not value)
+        for widget in [self.action,self.restore_button,self.new_button,self.open_button,self.settings_button,self.camera,self.mode,self.horizontal,self.vertical,self.ack,self.display,self.image_button,self.card_button,self.original_button,self.folder_button]:widget.setEnabled(not value)
         self.progress.setVisible(value)
         if value:self.instruction.setText(self.t('working'))
         else:self.refresh()
 
     def next_step(self):
+        if not self.session:
+            self.new_session()
+            return
         try:
             if not self.session:raise WorkflowError(self.t('select_session'))
             state=self.session.state
@@ -333,32 +756,122 @@ class Studio(QMainWindow):
     def restore(self):
         try:
             if not self.session:raise WorkflowError(self.t('select_session'))
-            if not self.ack.isChecked():raise WorkflowError(self.t('confirm_camera'))
+            if not self.card_input.text():
+                self.choose_card()
+                if not self.card_input.text():return
             card=self.card()
             if QMessageBox.question(self,self.t('restore'),self.t('restore_confirm'))==QMessageBox.Yes:
                 self.display.setChecked(False);self.run(lambda:self.session.begin_restore(card))
         except Exception as error:self.error(str(error))
 
-    def refresh(self):
-        state=self.session.state if self.session else 'new'
-        text=STATES.get(state,STATES['deployment_incomplete'])
-        self.instruction.setText(text[0 if self.language=='en' else 1])
-        actions={'new':'setup','wait_preflight':'check_preflight','wait_backup':'check_backup','backed_up':'prepare',
-                 'prepared':'install','wait_stage1':'check_stage1','wait_install':'check_install','wait_restore':'check_restore',
-                 'verified':'finish','restored':'finish','complete':'finish','deployment_incomplete':'setup'}
-        self.action.setText(self.t(actions.get(state,'setup')))
-        self.action.setEnabled(bool(self.session) and state not in ['complete','deployment_incomplete'])
-        self.restore_button.setEnabled(bool(self.session) and state in ['backed_up','prepared','wait_stage1','wait_install','verified','complete'])
-        self.folder_button.setEnabled(bool(self.session));self.camera.setEnabled(not bool(self.session))
-        self.display.setVisible(state in ['verified','restored'])
-        self.mode.setEnabled(state in ['new','backed_up'])
-        self.horizontal.setEnabled(state in ['new','backed_up']);self.vertical.setEnabled(state in ['new','backed_up'])
+    def stage(self, state):
+        if state == 'deployment_incomplete' and self.session:
+            state = self.session.data.get('previous_state', state)
+        if state in ('new', 'wait_preflight', 'wait_backup'):
+            return 0
+        if state == 'backed_up':
+            return 1
+        return 2
+
+    def update_action(self):
+        if not hasattr(self, 'action'):
+            return
+        busy = bool(self.worker and self.worker.isRunning())
+        state = self.session.state if self.session else 'new'
+        enabled = not busy and state not in ('complete', 'deployment_incomplete')
         if self.session:
-            self.session_label.setText(self.t('saved')+str(self.session.directory))
+            if state == 'backed_up':
+                enabled = enabled and bool(self.image)
+            else:
+                enabled = enabled and bool(self.card_input.text())
+            if state in ('new', 'wait_preflight', 'prepared', 'wait_stage1'):
+                enabled = enabled and self.ack.isChecked()
+            if state in ('verified', 'restored'):
+                enabled = enabled and self.display.isChecked()
+        self.action.setEnabled(enabled)
+
+    def refresh(self):
+        state = self.session.state if self.session else 'new'
+        waiting = state in CAMERA_STEPS
+        stage = self.stage(state)
+        for index, (frame, number, status) in enumerate(self.steps):
+            frame.setProperty('active', index == stage)
+            frame.style().unpolish(frame)
+            frame.style().polish(frame)
+            number.setText('✓' if index < stage or state == 'complete' else str(index + 1))
+            status.setText(self.t('done' if index < stage or state == 'complete' else 'current' if index == stage else 'later'))
+        title_key = state + '_title' if self.session else 'setup_title'
+        self.heading.setText(self.t(title_key))
+        self.location.setText(self.t('on_camera' if waiting else 'computer'))
+        if not self.session:
+            self.description.setText(self.t('setup_subtitle'))
+        elif state + '_subtitle' in TEXT:
+            self.description.setText(self.t(state + '_subtitle'))
+        else:
+            self.description.setText(self.t('card_ready' if waiting else 'ready_card'))
+        if waiting:
+            self.pages.setCurrentWidget(self.camera_page)
+            steps = CAMERA_STEPS[state]
+            for index, (frame, text) in enumerate(self.task_rows):
+                frame.setVisible(index < len(steps))
+                if index < len(steps):
+                    text.setText(steps[index][0 if self.language == 'en' else 1])
+        elif state == 'new':
+            self.pages.setCurrentWidget(self.setup_page)
+        elif state == 'backed_up':
+            self.pages.setCurrentWidget(self.design_page)
+        else:
+            self.pages.setCurrentWidget(self.result_page)
+            text = STATES.get(state, STATES['deployment_incomplete'])
+            self.result_message.setText(text[0 if self.language == 'en' else 1])
+            self.result_message.setVisible(state == 'deployment_incomplete')
+        self.pages.updateGeometry()
+        self.photo_row.setVisible(state == 'backed_up')
+        self.camera_panel.setVisible(state == 'new')
+        self.preview_panel.setVisible(state in ('backed_up', 'prepared', 'complete'))
+        self.card_panel.setVisible(bool(self.session) and state not in ('backed_up', 'deployment_incomplete'))
+        self.card_hint.setText(self.t('card_hint'))
+        self.ack.setVisible(bool(self.session) and state in ('new', 'wait_preflight', 'prepared', 'wait_stage1'))
+        self.display.setVisible(state in ('verified', 'restored'))
+        self.position_panel.setVisible(self.mode.currentIndex() == 0)
+        self.camera.setEnabled(not bool(self.session))
+        self.mode.setEnabled(state == 'backed_up')
+        self.horizontal.setEnabled(state == 'backed_up')
+        self.vertical.setEnabled(state == 'backed_up')
+        self.new_button.setVisible(bool(self.session))
+        self.folder_button.setVisible(bool(self.session))
+        self.folder_button.setEnabled(bool(self.session))
+        self.session_label.setVisible(bool(self.session))
+        self.restore_button.setVisible(bool(self.session) and state in ('backed_up', 'prepared', 'wait_stage1', 'wait_install', 'verified', 'complete'))
+        self.restore_button.setEnabled(bool(self.session) and state in ('backed_up', 'prepared', 'wait_stage1', 'wait_install', 'verified', 'complete'))
+        self.original_button.setVisible(bool(self.session) and 'original_sha256' in self.session.data and state != 'complete')
+        restored = bool(self.session and (self.session.state == 'complete' and self.session.data.get('last_result') == 'restored'))
+        self.preview_caption.setText(self.t('original_preview' if restored else 'preview'))
+        actions = {'new':'setup', 'wait_preflight':'check_preflight', 'wait_backup':'check_backup',
+                   'backed_up':'prepare', 'prepared':'install', 'wait_stage1':'check_stage1',
+                   'wait_install':'check_install', 'wait_restore':'check_restore',
+                   'verified':'finish', 'restored':'finish', 'complete':'finish', 'deployment_incomplete':'setup'}
+        self.action.setText(self.t(actions.get(state, 'setup')) if self.session else self.t('start'))
+        self.action.setVisible(state != 'complete')
+        if self.session:
+            self.session_label.setText(self.session.directory.name)
+            self.session_label.setToolTip(str(self.session.directory))
+            self.backup_path.setText(str(self.session.directory))
+            self.backup_path.setTextInteractionFlags(Qt.TextSelectableByMouse)
             if 'original_sha256' in self.session.data:
-                self.badge.setText(self.t('backup_badge')+' · '+self.session.data['model']+' · '+str(self.session.data['original_size'])+' B')
-            else:self.badge.clear()
+                self.badge.setText(self.t('backup_badge') + ' · ' + self.session.data['model'])
+            else:
+                self.badge.clear()
+        else:
+            self.backup_path.setText(self.t('backup_location_hint'))
+            self.badge.clear()
+        hints = {'new':'backup_location_hint' if not self.session else 'setup_subtitle',
+                 'backed_up':'image_hint', 'prepared':'same_camera_hint',
+                 'complete':'session_help_short', 'deployment_incomplete':'deployment_incomplete_subtitle'}
+        self.instruction.setText(self.t(hints.get(state, 'return_card' if waiting else 'ready_card')))
+        self.instruction.setVisible(bool(self.session))
         self.preview()
+        self.update_action()
 
     def closeEvent(self,event):
         if self.worker and self.worker.isRunning():
