@@ -6,6 +6,10 @@ Feature extensions build on the firmware interfaces documented in this repositor
 
 ## Custom shutdown images / 自定义关机画面
 
+[GR Shutdown Studio](../../apps/gr_shutdown_studio/README.md) provides a macOS/Windows desktop workflow for backup, image preparation and readback checks. Preview release; complete camera validation pending.
+
+[GR Shutdown Studio](../../apps/gr_shutdown_studio/README.md) 提供 macOS／Windows 图形化操作流程，包含备份、选图处理和读回校验。目前为预览版，完整流程待实机验证。
+
 Replace the camera's shutdown image through the TTL resource interface, with backup and restoration. Choose the guide for your model.
 
 通过 TTL 资源接口替换关机图片，支持原图备份和恢复。请按机型选择指南。

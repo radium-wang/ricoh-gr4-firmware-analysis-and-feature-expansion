@@ -39,3 +39,6 @@ URBANBK.JPG
 GR3XGB.JPG
 URB*.JPG
 URBLOG*.TXT
+
+# Desktop app build outputs
+/app-dist/
