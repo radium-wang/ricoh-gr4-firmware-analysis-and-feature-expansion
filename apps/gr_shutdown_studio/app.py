@@ -619,7 +619,7 @@ class Studio(QMainWindow):
         for widget in self.findChildren(QWidget):
             key = widget.property('text_key')
             if key and hasattr(widget, 'setText'):
-                widget.setText(self.t(key))
+                widget.setText(self.t(key) + (' · ' + __version__ if key == 'beta' else ''))
         self.camera.translate(self.t)
         self.mode.translate(self.t)
         self.card_input.setPlaceholderText(self.t('card_hint'))

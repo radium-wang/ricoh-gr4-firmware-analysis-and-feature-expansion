@@ -27,6 +27,10 @@ The app is a preview release. Its desktop workflows have host tests; the complet
 
 Only FAT32 volume roots are accepted for deployment. The app does not format cards or install firmware. Existing unrelated startup scripts and colliding task files are refused. Computer originals and recovery copies are checked in full and never replaced by different bytes; readbacks and deployment scripts are archived. An interrupted card deployment stops the workflow for inspection. Photos are never task destinations. No card was written during development tests.
 
+## Desktop stability
+
+Version 0.2.1 replaces Qt 6.8.3 with Qt 6.11.2. An arm64 macOS 27 report showed a startup-time crash in the Cocoa accessibility element destructor. The newer runtime includes accessibility cache/lifetime changes. Packaging checks the actual bundled Qt and app versions; the app version is also shown in the sidebar. Keep accessibility enabled when testing the packaged app. Offline UI tests do not cover Cocoa or macOS accessibility clients.
+
 ## Run and build
 
 From the repository root, with Python 3.10+:
@@ -44,7 +48,7 @@ python -m pip install -r apps/gr_shutdown_studio/requirements-build.txt
 python apps/gr_shutdown_studio/build.py
 ```
 
-Outputs: `app-dist/GR Shutdown Studio.app` on macOS, `app-dist/GR Shutdown Studio/GR Shutdown Studio.exe` on Windows. The packaged app includes Python and its dependencies. macOS builds require macOS 12+; the provided CI targets Apple Silicon, Intel macOS and Windows x64. Each architecture is built on its corresponding host. Distribution signing/notarization is not configured. The GitHub workflow builds downloadable artifacts without publishing a release.
+Outputs: `app-dist/GR Shutdown Studio.app` on macOS, `app-dist/GR Shutdown Studio/GR Shutdown Studio.exe` on Windows. The packaged app includes Python and its dependencies. macOS builds require macOS 13+; the provided CI targets Apple Silicon, Intel macOS and Windows x64. Each architecture is built on its corresponding host. Distribution signing/notarization is not configured. The GitHub workflow builds downloadable artifacts without publishing a release.
 
 ## 中文
 
@@ -55,5 +59,7 @@ Outputs: `app-dist/GR Shutdown Studio.app` on macOS, `app-dist/GR Shutdown Studi
 主页设置入口固定为 **Settings / 设置**，设置页语言选项固定为 **Language / 语言**。原图及操作记录保存到电脑，同时保存经核对的恢复副本。两份都在同一文件夹，请另将整个目录复制到其他存储位置。可重新打开继续操作或恢复。每台机身使用独立记录和 SD 卡；机型识别不能区分同型号的两台相机。
 
 支持范围见[机型与固件兼容表](../../docs/extensions/shutdown-compatibility.md)。安装目前仅开放仓库已有版本依据的 GR IV / HDF 1.11 与 Urban 1.60，其他组合保持关闭。网友可通过“保存测试报告”导出不含图片和机身标识的记录。
+
+0.2.1 更新 Qt 组件，并核对打包后的 Qt 与 App 版本，修复 macOS 启动后崩溃的问题。macOS 最低版本为 13。离屏测试不能覆盖原生 Cocoa 与系统辅助功能调用，分发前还需检查实际打包的 App。
 
 目前是预览版，完整 App 流程尚未实机验证。Urban 的等长编码不保证适配所有图片，失败时会停止。App 不格式化卡、不刷固件，不会覆盖无法确认归属的旧脚本。操作完成后关闭相机的 Script，保留电脑备份。
