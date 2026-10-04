@@ -308,10 +308,6 @@ class Studio(QMainWindow):
     def build(self):
         root = QWidget()
         self.setCentralWidget(root)
-        palette = root.palette()
-        palette.setColor(QPalette.Window, palette.color(QPalette.Base))
-        root.setPalette(palette)
-        root.setAutoFillBackground(True)
         outer = QHBoxLayout(root)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
