@@ -9,7 +9,7 @@ from importlib.metadata import version
 ROOT=Path(__file__).resolve().parents[2]
 OUTPUT=ROOT/'app-dist'
 TOOLS=['create_factory_entry.py','gr4_model.py','gr4_shutdown.py','pad_jpeg.py',
-       'gr3x_urban_jpeg.py','gr3x_urban_shutdown.py']
+       'gr3x_urban_jpeg.py','gr3x_urban_shutdown.py','audit_shutdown_compatibility.py']
 EXAMPLES=['identify-gr4-model.ttl.example','backup-gr4-family.ttl.example',
           'gr3x-urban-backup.ttl.example','gr3x-urban-restore.ttl.example']
 

@@ -20,6 +20,10 @@ Home: **Settings / 设置**. Settings dialog: **Language / 语言**. Both labels
 
 ## Camera support
 
+**Compatibility testing** accepts all ten catalog editions and other menu firmware versions. It creates a local research record, inspects existing update headers and optionally preserves an already extracted original in two verified computer copies. Reports omit pictures, EXIF, paths and body identifiers. This intake generates no camera scripts. GR IV's main workflow also offers 1.04 and 1.03 as backup tests; unqualified backups end with report export instead of image installation.
+
+See the [community testing procedure](../../docs/extensions/community-compatibility-testing.md) for distributing the preview and adapting cameras the maintainer does not own. Unknown III / IIIx editions still need dedicated, reviewed backup methods.
+
 - GR IV / HDF 1.11: automatic model selection during backup, equal-length JPEG encoding, one-shot installation and restoration. Monochrome identification is known but its evidence did not record firmware; installation is currently disabled.
 - GR IIIx Urban Edition 1.60: verified original profile only; temporary-image generation, complete readbacks between stages, internal-backup restoration. Exact-length encoding can fail for some artwork; the app stops instead of changing the original.
 
@@ -57,6 +61,8 @@ Outputs: `app-dist/GR Shutdown Studio.app` on macOS, `app-dist/GR Shutdown Studi
 ## 中文
 
 图形化关机画面工具，支持 macOS 和 Windows。按界面完成卡检查、原图备份、选图裁剪、图片编码、准备安装和完整读回校验。相机开关机仍需手动完成；Urban 会自动引导两阶段安装。
+
+0.3.0 的“适配测试”允许 10 类机型及其他菜单版本建立研究记录、分析本地更新包头、记录观察结果，并保留已读出原图的两份电脑副本。报告不含图片、EXIF、路径或机身标识，此入口不生成相机脚本。GR IV 主流程增加 1.04、1.03 的备份测试选项，未确认组合完成备份后导出报告，不进入安装。未知 III／IIIx 型号仍需专用、已审核的读取方法。分发与适配步骤见[社区测试流程](../../docs/extensions/community-compatibility-testing.md)。
 
 界面分为 **备份原图 → 选择画面 → 安装校验** 三个阶段，左侧标明进度。每页只显示当前需要的控件，相机上的操作按序号列出，右下角按钮执行下一步。相机和构图采用分段选择，固件采用版本菜单，其他版本可单独填写；切换机型会清空已选版本。语言选项在设置页直接展开。
 

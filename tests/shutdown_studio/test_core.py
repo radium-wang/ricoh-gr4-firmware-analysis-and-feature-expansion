@@ -62,6 +62,19 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(WorkflowError):self.session.verify_preflight(self.card)
         self.assertEqual(self.session.state,'wait_preflight')
         self.assertNotIn(b'GoodBye.jpg',(self.card/'script/startup.ttl').read_bytes())
+
+    def test_other_gr4_version_can_back_up_but_cannot_prepare_install_or_restore(self):
+        self.session=Session.create(self.root/'other-version','FAMILY','1.04')
+        self.backup()
+        self.assertEqual(self.session.state,'backed_up')
+        self.assertEqual(self.session.original(), self.original)
+        for action in [lambda:self.session.prepare(self.artwork), lambda:self.session.begin_restore(self.card)]:
+            with self.assertRaises(WorkflowError):action()
+        self.assertFalse((self.card/'script/startup.ttl').exists())
+        self.assertFalse((self.root/'other-version/prepared.jpg').exists())
+        report=self.root/'backup-test.json'
+        self.session.export_test_report(report)
+        self.assertFalse(json.loads(report.read_text())['installation_profile_available'])
     def test_mismatched_and_empty_readbacks_block_completion(self):
         self.backup();self.session.prepare(self.artwork);self.session.begin_install(self.card)
         for data in [b'',self.original]:
