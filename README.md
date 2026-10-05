@@ -35,7 +35,7 @@ Firmware, extracted system files, device readbacks and private artwork are not d
 
 #### Custom shutdown images
 
-[Shutdown-image guides](docs/extensions/README.md) cover the GR IV family and GR IIIx Urban Edition 1.60, with separate backup, write, readback and restore procedures. Identification and target paths have physical evidence; newer combined templates and wrappers are not fully camera-qualified. Keep a computer backup of each body's original before writing.
+[Shutdown-image guides](docs/extensions/README.md) cover the GR IV family and GR IIIx Urban Edition 1.60, with separate backup, write, readback and restore procedures. A [GR IIIx HDF 1.60 method record](docs/gr3x-hdf-160-shutdown-image.md) collects a contributor's one-body replacement findings; restoration was not tested. Identification and target paths have physical evidence; newer combined templates and wrappers are not fully camera-qualified. Keep a computer backup of each body's original before writing.
 
 ### Repository layout
 
@@ -103,7 +103,7 @@ python3 tools/inspect_firmware.py /path/to/fwdc248b.bin --unpack /tmp/gr4-decode
 
 #### 自定义关机画面
 
-[关机图片流程](docs/extensions/README.md)包含 GR IV 系列及 GR IIIx Urban Edition 1.60 的备份、写入、读回和恢复指南。机型识别及目标路径已有实机依据；新组合模板及工具包装尚未整套上机验证。写入前为每台机身保留电脑端原图备份。
+[关机图片流程](docs/extensions/README.md)包含 GR IV 系列及 GR IIIx Urban Edition 1.60 的备份、写入、读回和恢复指南。[GR IIIx HDF 1.60 方法记录](docs/gr3x-hdf-160-shutdown-image.md)另收录贡献者的单机更换发现，恢复未实测。机型识别及目标路径已有实机依据；新组合模板及工具包装尚未整套上机验证。写入前为每台机身保留电脑端原图备份。
 
 ### 仓库结构
 
