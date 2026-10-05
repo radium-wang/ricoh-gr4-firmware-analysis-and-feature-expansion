@@ -1,0 +1,48 @@
+; License: see LICENSE (earlier Apache-2.0 grants remain in force)
+; GR IIIx HDF, firmware 1.60; the backup workflow was run on one body.
+; Check both SD-card readbacks on a computer before installing anything.
+; This script never overwrites GoodBye.jpg.
+getfileattr 'C:\HDFBK0.JPG'
+if result <> -1 then
+exit
+endif
+getfileattr 'C:\HDFOLD.JPG'
+if result <> -1 then
+exit
+endif
+getfileattr 'B:\Resource\Jpeg\HD41OL.JPG'
+if result <> -1 then
+exit
+endif
+filestat 'B:\Resource\Jpeg\GoodBye.jpg' size
+if result <> 0 then
+exit
+endif
+if size <> 7264 then
+exit
+endif
+filecopy 'B:\Resource\Jpeg\GoodBye.jpg' 'C:\HDFBK0.JPG'
+filestat 'C:\HDFBK0.JPG' size
+if result <> 0 then
+exit
+endif
+if size <> 7264 then
+exit
+endif
+filecopy 'B:\Resource\Jpeg\GoodBye.jpg' 'B:\Resource\Jpeg\HD41OL.JPG'
+filestat 'B:\Resource\Jpeg\HD41OL.JPG' size
+if result <> 0 then
+exit
+endif
+if size <> 7264 then
+exit
+endif
+filecopy 'B:\Resource\Jpeg\HD41OL.JPG' 'C:\HDFOLD.JPG'
+filestat 'C:\HDFOLD.JPG' size
+if result <> 0 then
+exit
+endif
+if size <> 7264 then
+exit
+endif
+exit

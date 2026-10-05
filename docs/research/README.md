@@ -16,7 +16,7 @@ The reports below document existing findings. Static addresses refer to the reco
 | Factory menu, serial input and TTL / 工厂菜单、串口与脚本 | Mixed static findings and device observations / 静态与实机结论分别记录 | [Factory interfaces / 工厂接口](../firmware-and-shutdown-image-research.md#工厂菜单与启动脚本) |
 | Product IDs and resource routing / 产品 ID 与资源路径 | Static analysis and three-body identification evidence / 静态分析及三机型识别证据 | [Model identification / 机型识别](../gr4-model-identification.md) |
 | TTL file-operation failures / TTL 文件操作失败 | Contributor report; root cause unresolved / 社区反馈，根因待查 | [Filesystem comparison](gr4-ttl-filecopy-filesystems.md) |
-| Resource writes and JPEG handling / 资源写入及 JPEG 行为 | Camera-specific experiments / 按机型记录的实验 | [GR IV](../firmware-and-shutdown-image-research.md#已验证的写入原理), [Urban](../gr3x-urban-160-shutdown-image.md) |
+| Resource writes and JPEG handling / 资源写入及 JPEG 行为 | Camera-specific experiments / 按机型记录的实验 | [GR IV](../firmware-and-shutdown-image-research.md#已验证的写入原理), [Urban](../gr3x-urban-160-shutdown-image.md), [GR IIIx HDF](../gr3x-hdf-160-shutdown-image.md) |
 
 ## Reading order / 阅读顺序
 

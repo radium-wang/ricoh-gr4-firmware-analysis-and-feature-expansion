@@ -16,12 +16,12 @@ import gr3x_urban_shutdown as shutdown
 from gr3x_urban_jpeg import parse_jpeg
 
 
-def run_backup_model(name, files, failed_copy=False):
+def run_backup_model(name, files, failed_copy=False, prefix="gr3x-urban"):
     """Model the guarded examples, not the camera filesystem/TTL interpreter."""
     variables = {'result': 0}
     active = []
     writes = []
-    for line in (ROOT / 'examples' / f'gr3x-urban-{name}.ttl.example').read_text().splitlines():
+    for line in (ROOT / 'examples' / f'{prefix}-{name}.ttl.example').read_text().splitlines():
         if not line or line.startswith(';'):
             continue
         if line == 'endif':
@@ -55,7 +55,8 @@ def run_backup_model(name, files, failed_copy=False):
 
 class FactoryEntryTests(unittest.TestCase):
     def test_model_selection_and_no_overwrite(self):
-        for model, entry in [('gr4', '00078560.636'), ('gr3x-urban-160', '00078490.609')]:
+        for model, entry in [('gr4', '00078560.636'), ('gr3x-urban-160', '00078490.609'),
+                             ('gr3x-hdf-160', '00078490.609')]:
             with self.subTest(model=model), tempfile.TemporaryDirectory() as directory:
                 command = [sys.executable, str(ROOT / 'tools/create_factory_entry.py'), directory]
                 if model != 'gr4':
@@ -182,6 +183,28 @@ class ExampleGuardTests(unittest.TestCase):
                       dict(good, **{shutdown.TARGET: b'short'}),
                       dict(good, **{shutdown.OLD: b'short'})]:
             self.assertEqual(run_backup_model('restore', files), [])
+
+
+class HDFBackupTests(unittest.TestCase):
+    def test_backup_outputs_and_existing_original_are_preserved(self):
+        target = r'B:\Resource\Jpeg\GoodBye.jpg'
+        original = r'B:\Resource\Jpeg\HD41OL.JPG'
+        files = {target: b'O'*7264}
+        run_backup_model('backup', files, prefix='gr3x-hdf-160')
+        for name in [original, r'C:\HDFBK0.JPG', r'C:\HDFOLD.JPG']:
+            self.assertEqual(files[name], files[target])
+        self.assertEqual(run_backup_model('backup', files, prefix='gr3x-hdf-160'), [])
+        files = {target: b'N'*7264, original: b'O'*7264}
+        self.assertEqual(run_backup_model('backup', files, prefix='gr3x-hdf-160'), [])
+        self.assertEqual(files[original], b'O'*7264)
+
+    def test_missing_short_target_and_failed_copy_do_not_create_internal_backup(self):
+        target = r'B:\Resource\Jpeg\GoodBye.jpg'
+        for files in [{}, {target: b'short'}]:
+            self.assertEqual(run_backup_model('backup', files, prefix='gr3x-hdf-160'), [])
+        files = {target: b'O'*7264}
+        self.assertEqual(run_backup_model('backup', files, failed_copy=True, prefix='gr3x-hdf-160'), [])
+        self.assertNotIn(r'B:\Resource\Jpeg\HD41OL.JPG', files)
 
 
 class JPEGBoundsTests(unittest.TestCase):
