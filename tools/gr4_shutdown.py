@@ -11,9 +11,11 @@ from pathlib import Path
 try:
     from .gr4_model import MODELS
     from .pad_jpeg import pad_jpeg
+    from . import gr4_hdf_exfat
 except ImportError:
     from gr4_model import MODELS
     from pad_jpeg import pad_jpeg
+    import gr4_hdf_exfat
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKUPS = {'STANDARD': 'GBSTD.JPG', 'HDF': 'GBHDF.JPG', 'MONO': 'GBMONO.JPG'}
@@ -147,9 +149,12 @@ def main():
     p = sub.add_parser('prepare'); p.add_argument('card', type=Path); p.add_argument('image', type=Path); p.add_argument('output', type=Path)
     p = sub.add_parser('verify'); p.add_argument('package', type=Path); p.add_argument('readback', type=Path); p.add_argument('--restore', action='store_true')
     p = sub.add_parser('restore'); p.add_argument('package', type=Path); p.add_argument('output', type=Path)
+    gr4_hdf_exfat.add_parser(sub)
     args = parser.parse_args()
     try:
-        if args.command == 'backup':
+        if args.command == 'exfat':
+            print(json.dumps(gr4_hdf_exfat.dispatch(args), indent=2))
+        elif args.command == 'backup':
             fresh_output(args.output)
             (args.output / 'script/startup.ttl').write_text(generate_backup())
         elif args.command == 'prepare':

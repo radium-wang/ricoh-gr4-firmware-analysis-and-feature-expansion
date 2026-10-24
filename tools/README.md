@@ -22,6 +22,7 @@ Run commands from the repository root. Paths are unchanged so existing scripts a
 | [create_factory_entry.py](create_factory_entry.py) | Generate entry files for documented setups / 生成已记录机型的工厂入口文件 |
 | [pad_jpeg.py](pad_jpeg.py) | JPEG COM padding to a requested byte length / 通过 COM 段补齐 JPEG 长度 |
 | [gr4_shutdown.py](gr4_shutdown.py) | GR IV-family image preparation, staged script packages and readback verification / 系列图片处理、操作包生成及读回校验 |
+| [gr4_hdf_exfat.py](gr4_hdf_exfat.py) | Optional `gr4_shutdown.py exfat` HDF 1.11 literal transport; [workflow and limits](../docs/extensions/gr4-hdf-111-exfat-literal.md) / 可选 HDF 字面量传输、小测试及分阶段完整校验 |
 | [gr3x_urban_jpeg.py](gr3x_urban_jpeg.py) | Urban-specific JPEG encoding and checks / Urban JPEG 编码与检查 |
 | [gr3x_urban_shutdown.py](gr3x_urban_shutdown.py) | Urban two-stage scripts and verification / Urban 两阶段脚本与校验 |
 
