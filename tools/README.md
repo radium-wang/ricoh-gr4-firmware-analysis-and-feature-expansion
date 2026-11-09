@@ -15,6 +15,16 @@ Run commands from the repository root. Paths are unchanged so existing scripts a
 | [ic_probe_readonly.swift](ic_probe_readonly.swift) | ImageCaptureCore enumeration / 相机枚举 | macOS device session, read-only / macOS 设备会话，只读 |
 | [gr4_model.py](gr4_model.py) | Product-header identification / 产品头识别 | Host-side eight-byte input; no camera access / 电脑端八字节输入 |
 
+## Archived GR IV experiments / GR IV 实验源码
+
+The [research index](../docs/research/README.md) links each report to its analysis tools and identifies the firmware sample. The [XPAN sources](../firmware/) include the crop model, preview adapters, and hook transaction code. Run host checks from the repository root. The firmware sample and the generated outputs under `devkit-output/` are local inputs and outputs.
+
+[研究索引](../docs/research/README.md)按专题列出报告、复现入口和样本。[XPAN 源码](../firmware/)包括裁切模型、预览适配和挂钩事务。在仓库根目录运行离线检查，固件样本及 `devkit-output/` 下的产物由本地提供或生成。
+
+The USB files named `*_trial.py` and the generated SD scripts are historical experiments. Their permitted operations and recovery checks are recorded in the linked reports. A host-side pass covers only the cases exercised by the check.
+
+USB 的 `*_trial.py` 及生成的 SD 脚本是历史实验，操作范围与恢复核对见对应报告。电脑端检查仅覆盖实际执行的用例。
+
 ## Feature expansion / 功能扩展
 
 | Tool | Purpose / 用途 |

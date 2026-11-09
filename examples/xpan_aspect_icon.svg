@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 40" role="img" aria-label="XPAN 65:24 aspect icon">
+  <!-- Project vector draft; not in the camera's native ICONBIN format. -->
+  <rect x="1" y="1" width="62" height="38" rx="3" fill="#111" stroke="#fff" stroke-width="2"/>
+  <path d="M5 8h54v20H5z" fill="none" stroke="#fff" stroke-width="2"/>
+  <path d="M5 28h54" stroke="#fff" stroke-width="1.5"/>
+  <text x="32" y="37" text-anchor="middle" font-family="sans-serif" font-size="7" font-weight="700" fill="#fff">XPAN</text>
+</svg>

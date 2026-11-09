@@ -1,0 +1,26 @@
+#!/bin/sh
+# Copyright 2026 radium-wang
+# License: see LICENSE (earlier Apache-2.0 grants remain in force)
+# Diagnostic: query Linux and create one result file on the identified SD card.
+
+case "$0" in
+    /run/SD/RICOH?GR/LXCMD.SH) ;;
+    *) exit 64 ;;
+esac
+
+gr_probe_dir=${0%/*}
+test -f "$gr_probe_dir/00078560.636" || exit 65
+test -f "$gr_probe_dir/DEVELOP.MOD" || exit 65
+test -d "$gr_probe_dir/DCIM" || exit 65
+
+gr_probe_output="$gr_probe_dir/LXDONE.TXT"
+test ! -e "$gr_probe_output" || exit 66
+test ! -L "$gr_probe_output" || exit 66
+set -C
+
+{
+    printf '%s\n' 'XPAN_LINUX_SD_OK'
+    uname -sr
+    printf 'script_path=%s\n' "$0"
+    printf '%s\n' 'query finished'
+} > "$gr_probe_output"

@@ -1,0 +1,71 @@
+; GR IV 01.11.10.07: supervised SD/USB callback experiment.
+; This file itself never writes camera memory, changes settings, or loads code.
+; It writes an appended SD log and sends an unknown four-byte command.
+; The host controller temporarily changes only seven checked RAM words.
+; All sendln calls in the waiting loop have the same four-byte payload.
+; Once any return other than -1 arrives, no further sendln is issued.
+
+xpg_state = 1700
+xpg_return = -999
+xpg_calls = 0
+xpg_input_code = 0
+; str2code shares the sendln string parser and packs four bytes big-endian.
+; Require exactly 90 19 3B 55 before the host is allowed to change callbacks.
+str2code xpg_input_code #144#25#59#85
+if xpg_input_code != -1877394603 then
+    xpg_state = 1792
+    end
+endif
+fileopen xpg_log 'C:\XPGATE.TXT' 1
+if xpg_log < 0 then
+    xpg_state = 1790
+    end
+endif
+filewriteln xpg_log 'SD/USB call gate started; no XPAN installation'
+fileclose xpg_log
+
+sendln 'SYS_buildinfo'
+xpg_return = result
+if xpg_return != 0 then
+    xpg_state = 1791
+    goto xpg_finish
+endif
+
+xpg_state = 1701
+while xpg_calls < 600
+    mpause 1000
+    ; 90 19 3B 55 = little-endian 0x553B1990.
+    ; With the original callback this cannot match an engineering command.
+    sendln #144#25#59#85
+    xpg_return = result
+    xpg_calls = xpg_calls + 1
+    if xpg_return != -1 then
+        ; A controller must restore callbacks and the response buffer.
+        ; Holding here lets USB read the captured result before teardown.
+        xpg_state = 1702
+        mpause 60000
+        goto xpg_finish
+    endif
+endwhile
+xpg_state = 1703
+
+:xpg_finish
+; Local file operations only after the final sendln; never send SYS_reg here.
+fileopen xpg_log 'C:\XPGATE.TXT' 1
+if xpg_log >= 0 then
+    int2str xpg_text xpg_state
+    filewriteln xpg_log 'state:'
+    filewriteln xpg_log xpg_text
+    int2str xpg_text xpg_return
+    filewriteln xpg_log 'captured return:'
+    filewriteln xpg_log xpg_text
+    int2str xpg_text xpg_calls
+    filewriteln xpg_log 'calls:'
+    filewriteln xpg_log xpg_text
+    int2str xpg_text xpg_input_code
+    filewriteln xpg_log 'input code:'
+    filewriteln xpg_log xpg_text
+    filewriteln xpg_log 'script finished'
+    fileclose xpg_log
+endif
+end

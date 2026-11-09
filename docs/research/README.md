@@ -13,6 +13,7 @@ The reports below document existing findings. Static addresses refer to the reco
 | Container headers, versions, frame decoding and checksum / 容器结构与校验 | Local GR IV 1.11 sample / 本地样本分析 | [Firmware package / 固件更新包](../firmware-and-shutdown-image-research.md#固件更新包) |
 | RTOS mapping, Linux device tree and memory / RTOS 与 Linux 内存布局 | Static analysis; chip capacity discussed separately / 静态分析，物理容量另作讨论 | [Memory map / 内存映射](../firmware-and-shutdown-image-research.md#a7linux-内存映射) |
 | Linux RAM expansion to 1 GiB / Linux 扩容到 1 GiB | Original kernel booted with a split layout in QEMU; IMAGE2 repartition untested on camera / 原厂内核分段布局离线启动成功，缩小 IMAGE2 尚未验证机身功能 | [Memory feasibility / 内存可行性](2026-10-13-gr4-linux-1gib-memory.md) |
+| Update version comparison / 升级版本比较 | Offline container and control-flow checks / 离线容器与控制流核对 | [Version check / 版本检查](../gr4-update-version-check.md) |
 
 ## Camera interfaces / 相机接口
 
@@ -23,6 +24,20 @@ The reports below document existing findings. Static addresses refer to the reco
 | Version-page startup and key events / Version 页与按键事件 | Static tracing plus a verified startup gesture / 静态追踪及已验证入口 | [Version page / Version 入口](../gr4-debug-mode-analysis.md#开机代码-4-的来源与实机验证) |
 | Factory menu, serial input and TTL / 工厂菜单、串口与脚本 | Mixed static findings and device observations / 静态与实机结论分别记录 | [Factory interfaces / 工厂接口](../firmware-and-shutdown-image-research.md#工厂菜单与启动脚本) |
 | Product IDs and resource routing / 产品 ID 与资源路径 | Static analysis and three-body identification evidence / 静态分析及三机型识别证据 | [Model identification / 机型识别](../gr4-model-identification.md) |
+| Focus modes, hybrid CAF/ZAF and lens requests / 对焦模式、混合 AF 与镜头请求 | Static checks and bounded original ARM execution / 静态核对及有限原 ARM 指令检查 | [Focus research / 对焦研究](2026-10-13-gr4-focus.md) |
+| Factory USB/MTP and SD-to-Linux / USB 工厂通道与 SD 桥接 | Static tracing and device probes / 静态追踪与实机探针 | [USB factory path / USB 工厂通道](../2026-10-01-gr4-usb-factory-path.md) · [SD bridge repetitions / SD 桥接复测](../2026-10-01-sd-bridge-repeat.md) |
+
+## XPAN crop and native UI / XPAN 裁切与原生界面
+
+| Topic / 主题 | Evidence / 依据 | Report / 报告 |
+| --- | --- | --- |
+| Crop geometry and menu candidates / 裁切几何与菜单候选 | Static analysis and bounded tests / 静态分析及有限测试 | [Feasibility / 可行性](../xpan-crop-feasibility.md) · [Native UI routes / 原生界面](2026-10-01-native-ui-routes.md) |
+| SD probes and owned RAM execution / SD 探针与自有 RAM 执行 | Device observations on GR IV 1.11 / GR IV 1.11 实机观察 | [SD path / SD 路径](../xpan-sd-path.md) · [RAM core / RAM 核心](2026-10-01-xpan-ram-core.md) · [Recovery / 恢复](../xpan-recovery.md) |
+| JPEG, preview and menu hooks / JPEG、预览与菜单挂钩 | Offline candidates and separately labelled read-only device results / 离线候选及另行标记的实机只读结果 | [JPEG route / JPEG 路由](2026-10-02-jpeg-native-route.md) · [Shared selection / 共用选择](2026-10-02-shared-selection-v15.md) · [v16 hooks / v16 挂钩](2026-10-02-native-menu-hooks-v16.md) |
+
+The [research log](../research-log.md) records changes in the proposed menu placement and the intermediate preview experiments. No installable XPAN feature was validated on the camera.
+
+[研究日志](../research-log.md)记录了菜单位置方案的变化及中间预览实验。XPAN 功能未在实机完成安装验证。
 
 ## Flash and hotshoe / 闪光灯与热靴
 

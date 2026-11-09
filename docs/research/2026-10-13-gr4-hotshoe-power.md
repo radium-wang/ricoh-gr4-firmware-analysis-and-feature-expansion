@@ -102,7 +102,7 @@ CloseCommunication
 | 628 | `HotshoeCommType1` | `0x5306060C` | `0x02E93520` |
 | 629 | `HotshoeGetHotDetAd` | `0x53060794` | `0x02E93560` |
 
-原厂 SD 脚本 `sendln` 经 `0x538EF3C8` 进入工程 shell `0x538EEFF4`，匹配命令名后调用注册处理函数，处理函数返回值写入脚本 `result`。该通路此前已有基础诊断的实机证据。2026-10-13 新实机日志确认 `HotshoeCheckDisable` 和 `HotshoeCommType1` 的暂停、发送、读回复、恢复通路；`ExeHotshoeCommType1` 和 `HotshoeGetHotDetAd` 尚未执行。[脚本通路审计](../../tools/audit_sd_shell_path.py)
+原厂 SD 脚本 `sendln` 经 `0x538EF3C8` 进入工程 shell `0x538EEFF4`，匹配命令名后调用注册处理函数，处理函数返回值写入脚本 `result`。该通路此前已有[基础诊断的实机证据](../2026-10-01-gr4-usb-factory-path.md)。2026-10-13 新实机日志确认 `HotshoeCheckDisable` 和 `HotshoeCommType1` 的暂停、发送、读回复、恢复通路；`ExeHotshoeCommType1` 和 `HotshoeGetHotDetAd` 尚未执行。[脚本通路审计](../../tools/audit_sd_shell_path.py)
 
 `ExeHotshoeCommType1` 参数为 `命令号 显示方向 数据字节数 [发送字节…]`。显示方向只影响本函数日志打印，实际收发仍是全双工。数字通过 `0x53155F8C` 以 **base 10** 解析，因此 C0 必须写成十进制 192：
 
@@ -126,7 +126,7 @@ HotshoeCommType1 2 0         # 读取 RX[0]，作为函数返回值
 
 按现有 Script 功能运行时，需要在卡上使用 `script/startup.ttl` 并启用 Script；已有启动脚本应先备份，不能叠加运行。查询前新增 15 秒等待，让正常开启时的基线测试有时间手动打开 GF-2；关闭状态实验不要在等待期间按灯的电源键。其扩展名 TTL 指机内脚本语言，不是闪光测光协议。
 
-用户连接 SD 卡后，已核对 `/Volumes/RICOH GR` 为外置可移除 FAT32 `/dev/disk4s1`。旧 XPAN 启动脚本、恢复副本和实验记录共 11 个文件（25,786 字节）先完整备份并核对，随后清理旧实验文件和空目录。部署的三个文件已逐字节读回核对，新 `startup.ttl` 为 2,665 字节，SHA-256 `561c1a92edd79f70392c98058ae51dda7506cb6a10b41ab786a19025996ba7bd`。macOS 随主日志移除了 AppleDouble 旁文件；检查后完成剩余清理。电脑记录在 `devkit-output/gr4-hotshoe-c0-test-20261013-v1/`。没有发送相机命令，也没有修改相机设置。具体操作见[单次查询测试说明](2026-10-13-gr4-hotshoe-c0-test.md)。
+用户连接 SD 卡后，已核对 `GR-SD` 为外置可移除 FAT32 `/dev/diskNsM`。旧 XPAN 启动脚本、恢复副本和实验记录共 11 个文件（25,786 字节）先完整备份并核对，随后清理旧实验文件和空目录。部署的三个文件已逐字节读回核对，新 `startup.ttl` 为 2,665 字节，SHA-256 `561c1a92edd79f70392c98058ae51dda7506cb6a10b41ab786a19025996ba7bd`。macOS 随主日志移除了 AppleDouble 旁文件；检查后完成剩余清理。电脑记录在 `devkit-output/gr4-hotshoe-c0-test-20261013-v1/`。没有发送相机命令，也没有修改相机设置。具体操作见[单次查询测试说明](2026-10-13-gr4-hotshoe-c0-test.md)。
 
 首次实验应先在灯开启时确认脚本能记录 A5，再对用户按键关机、机身联动关机后的灯分别测试。暂停检测与等待并不构成排他的硬件锁，所以实验期间不能同时拍摄、半按或运行其他热靴测试。若异常中止、恢复未完成，需停止脚本并重新启动相机，不能把脚本正常结束路径当作异常恢复保证。
 

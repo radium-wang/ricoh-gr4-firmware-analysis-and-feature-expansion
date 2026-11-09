@@ -15,17 +15,27 @@ import usb.util
 
 VID, PID = 0x25FB, 0x2123
 EP_IN, EP_OUT = 0x81, 0x01
+# GR IV 25fb:2123 interface 0 reports 1024-byte bulk packets. Receive
+# buffers must fit whole packets, including the final partial container read.
+BULK_READ_UNIT = 1024
 
 
 def read_container(device):
-    chunk = bytes(device.read(EP_IN, 512, timeout=5000))
+    chunk = bytes(device.read(EP_IN, BULK_READ_UNIT, timeout=5000))
     if len(chunk) < 12:
         raise RuntimeError(f"short MTP header: {chunk.hex()}")
     length, kind, code, transaction = struct.unpack_from("<IHHI", chunk)
     if length < 12 or length > 1_000_000:
         raise RuntimeError(f"invalid MTP length: {length}")
     while len(chunk) < length:
-        chunk += bytes(device.read(EP_IN, min(16384, length - len(chunk)), timeout=5000))
+        remaining = length - len(chunk)
+        receive = min(16384, ((remaining + BULK_READ_UNIT - 1) // BULK_READ_UNIT) * BULK_READ_UNIT)
+        block = bytes(device.read(EP_IN, receive, timeout=5000))
+        if not block:
+            raise RuntimeError('empty transfer before the MTP container ended')
+        chunk += block
+    if len(chunk) != length:
+        raise RuntimeError('received bytes beyond one MTP container; refuse to discard them')
     return kind, code, transaction, chunk[12:length]
 
 

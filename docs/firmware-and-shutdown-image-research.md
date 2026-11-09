@@ -65,7 +65,7 @@ python3 tools/inspect_firmware.py /path/to/fwdc248b.bin --unpack /tmp/gr4-decode
 
 继续追踪后，已把属性 ID `0x0E` 连接到公共属性 `+0x5F`，并找到两个直接调用 getter 的界面：一个显示 `Camera Mode: Normal/Debug`；另一个是开机代码 4 对应的 `Version` 页面 `FactoryEntranceController`，Debug 下将版本号从两段改为四段，并有条件启用限时四次按键序列入口，匹配后进入 `DevelopmentMenuController`。此前误把页面状态 2 写成开机代码 2，现已纠正。用户已实测普通“相机信息”、关机画面，以及 MENU+电源（卡内放官网固件和取出 SD 卡两种情况）均未显示该 Version 页。后续静态追踪将开机代码 4 连接到 `RDIAL Push`（机背 ADJ./后拨轮按压）；用户随后实测**按住后拨轮向内按压，再用回放键开机**，确认出现 `Version` 页面。此前将 MENU+电源/无卡启动建议为 Version 页测试的说法已撤回。
 
-上述按键入口已由用户在一台 GR IV 上实测，用户还确认该页显示四段版本号；具体数字未读回。隐藏菜单序列仍只来自静态分析。完整地址、可写数据搬运映射、版本格式、序列事件 ID 和覆盖范围见 [Debug 模式消费者追踪](gr4-debug-mode-analysis.md)。升级器的版本比较规则和其他间接消费者仍应分别验证。
+上述按键入口已由用户在一台 GR IV 上实测，用户报告该页显示 `01.11.10.07`。隐藏菜单序列仍只来自静态分析。完整地址、可写数据搬运映射、版本格式、序列事件 ID 和覆盖范围见 [Debug 模式消费者追踪](gr4-debug-mode-analysis.md)。升级器的版本比较规则见[版本检查分析](gr4-update-version-check.md)，其他间接消费者仍应分别验证。
 
 ### Serial Input：已找到的机制与边界
 

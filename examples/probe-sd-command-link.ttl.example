@@ -1,0 +1,12 @@
+; Diagnostic only. All file writes below stay on the SD card (C:).
+; A completed second line means sendln returned, not that SYS_buildinfo ran.
+
+filecreate fhandle 'C:\XPLINK.TXT'
+filewriteln fhandle 'before sendln'
+fileclose fhandle
+
+sendln 'SYS_buildinfo'
+
+fileopen fhandle 'C:\XPLINK.TXT' 1
+filewriteln fhandle 'sendln returned'
+fileclose fhandle

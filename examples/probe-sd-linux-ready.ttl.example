@@ -1,0 +1,53 @@
+; GR IV 1.11.10.7 diagnostic. Writes only C:\LXREADY.TXT on the SD card.
+; is_linux_boot polls existing readiness flags without starting Linux.
+; Each reply is captured before any file command can overwrite result.
+
+filecreate logf 'C:\LXREADY.TXT'
+filewriteln logf 'linux readiness probe started'
+fileclose logf
+
+sendln 'SYS_buildinfo'
+int2str reply result
+fileopen logf 'C:\LXREADY.TXT' 1
+filewriteln logf 'SYS_buildinfo result:'
+filewriteln logf reply
+fileclose logf
+
+sendln 'is_linux_boot'
+int2str reply result
+fileopen logf 'C:\LXREADY.TXT' 1
+filewriteln logf 'ready at script start:'
+filewriteln logf reply
+fileclose logf
+
+mpause 5000
+sendln 'is_linux_boot'
+int2str reply result
+fileopen logf 'C:\LXREADY.TXT' 1
+filewriteln logf 'ready after 5 seconds:'
+filewriteln logf reply
+fileclose logf
+
+mpause 10000
+sendln 'is_linux_boot'
+int2str reply result
+fileopen logf 'C:\LXREADY.TXT' 1
+filewriteln logf 'ready after 15 seconds:'
+filewriteln logf reply
+fileclose logf
+
+mpause 10000
+sendln 'is_linux_boot'
+int2str reply result
+fileopen logf 'C:\LXREADY.TXT' 1
+filewriteln logf 'ready after 25 seconds:'
+filewriteln logf reply
+fileclose logf
+
+sendln 'XPAN_NO_SUCH_COMMAND'
+int2str reply result
+fileopen logf 'C:\LXREADY.TXT' 1
+filewriteln logf 'unknown command result:'
+filewriteln logf reply
+filewriteln logf 'linux readiness probe finished'
+fileclose logf

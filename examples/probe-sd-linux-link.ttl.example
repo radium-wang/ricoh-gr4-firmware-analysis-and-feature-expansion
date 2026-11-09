@@ -1,0 +1,24 @@
+; GR IV diagnostic. Writes C:\LXSTATE.TXT, then asks Linux to run LXCMD.SH.
+; The Linux script writes only LXDONE.TXT on the identified SD card.
+; The wildcard handles the space in the volume label without nested quoting.
+
+filecreate logf 'C:\LXSTATE.TXT'
+filewriteln logf 'linux probe started'
+fileclose logf
+
+mpause 10000
+sendln 'lcmd "/bin/sh /run/SD/RICOH?GR/LXCMD.SH"'
+int2str reply result
+fileopen logf 'C:\LXSTATE.TXT' 1
+filewriteln logf 'lcmd dispatch result:'
+filewriteln logf reply
+fileclose logf
+
+mpause 5000
+filesearch 'C:\LXDONE.TXT'
+int2str marker result
+fileopen logf 'C:\LXSTATE.TXT' 1
+filewriteln logf 'SD marker found:'
+filewriteln logf marker
+filewriteln logf 'linux probe finished'
+fileclose logf

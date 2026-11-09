@@ -1,0 +1,11 @@
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="480" viewBox="0 0 720 480">
+  <title>XPAN 65:24 framing overlay for a 3:2 image area</title>
+  <desc>Center band is transparent. Scale to the actual 3:2 live image, not to a whole 16:9 video signal.</desc>
+  <rect x="0" y="0" width="720" height="107" fill="#000" fill-opacity="0.92"/>
+  <rect x="0" y="373" width="720" height="107" fill="#000" fill-opacity="0.92"/>
+  <path d="M0 107H720M0 373H720" fill="none" stroke="#fff" stroke-opacity="0.55" stroke-width="1"/>
+  <rect x="608" y="12" width="100" height="32" fill="#111" stroke="#fff" stroke-width="2"/>
+  <text x="658" y="28" dominant-baseline="central" text-anchor="middle"
+        fill="#fff" font-family="sans-serif" font-size="17" font-weight="bold">XPAN</text>
+</svg>

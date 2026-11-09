@@ -1,0 +1,378 @@
+; GR IV 1.11.10.7 only. One boot, allow 90 seconds.
+; SD diagnostic: fixed reads, bounded same-boot pointer reads, Linux queries.
+; No firmware/code/property writes. lcmd_resp is temporarily enabled and restored.
+; An existing XPBATCH.TXT stops the script to preserve previous results.
+filesearch 'C:\XPBATCH.TXT'
+if result = 1 then
+    end
+endif
+filecreate bf 'C:\XPBATCH.TXT'
+filewriteln bf 'XPAN batch started'
+fileclose bf
+mpause 10000
+; decoder/version check
+da = 1400951276
+ds = 16
+dn = 'XPCHECK.BIN'
+call dump_fixed
+; aspect selection
+da = 1394978300
+ds = 208
+dn = 'XPASPC.BIN'
+call dump_fixed
+; view layout
+da = 1396304128
+ds = 512
+dn = 'XPLVC.BIN'
+call dump_fixed
+; crop icon selection
+da = 1396278144
+ds = 224
+dn = 'XPICON.BIN'
+call dump_fixed
+; still aspect setting
+da = 1400951248
+ds = 384
+dn = 'XPSTILL.BIN'
+call dump_fixed
+; aspect status text
+da = 1397618688
+ds = 256
+dn = 'XPTEXT.BIN'
+call dump_fixed
+; DNG crop window
+da = 1401401380
+ds = 424
+dn = 'XPDNG.BIN'
+call dump_fixed
+; live view crop task
+da = 1398984468
+ds = 512
+dn = 'XPLVTASK.BIN'
+call dump_fixed
+; aspect order
+da = 1406906420
+ds = 16
+dn = 'XPORDER.BIN'
+call dump_fixed
+; crop magnifications
+da = 1406905360
+ds = 12
+dn = 'XPMAG.BIN'
+call dump_fixed
+; current imaging properties
+da = 1426611520
+ds = 192
+dn = 'XPPROP.BIN'
+call dump_fixed
+; logger state
+da = 1429866724
+ds = 128
+dn = 'XPLOGST.BIN'
+call dump_fixed
+; Linux bridge holder/boot state
+da = 1426719488
+ds = 768
+dn = 'XPBOOT.BIN'
+call dump_fixed
+; saved log manager
+da = 1429882456
+ds = 88
+dn = 'XPMGR.BIN'
+call dump_fixed
+; shell table state
+da = 1429866828
+ds = 84
+dn = 'XPSHELL.BIN'
+call dump_fixed
+; image size calculator holder
+da = 1429863524
+ds = 32
+dn = 'XPIMROOT.BIN'
+call dump_fixed
+; Check binary decoding against a known positive pointer in the code snapshot.
+ufile = 'C:\XPCHECK.BIN'
+uoff = 12
+call read_u32
+decoder = 0
+if uok = 1 then
+    if uv = 1400951328 then
+        decoder = 1
+    endif
+endif
+tag = 'binary decoder check'
+value = decoder
+call record_value
+ring_ok = 0
+bridge_ok = 0
+if decoder = 1 then
+    ; Locate the current print ring, never reuse a pointer from an earlier boot.
+    ufile = 'C:\XPLOGST.BIN'
+    uoff = 12
+    call read_u32
+    if uok = 1 then
+        da = uv
+        ds = 32
+        dn = 'XPRMETA.BIN'
+        call dump_heap
+        if dok = 1 then
+            ufile = 'C:\XPRMETA.BIN'
+            uoff = 8
+            call read_u32
+            ring_size = uv
+            size_ok = uok
+            uoff = 16
+            call read_u32
+            ring_addr = uv
+            if uok = 1 then
+                if size_ok = 1 then
+                    da = ring_addr
+                    ds = ring_size
+                    dn = 'XPRPRE.BIN'
+                    call dump_heap
+                    ring_ok = dok
+                endif
+            endif
+        endif
+    endif
+
+    ; Resolve the actual image size calculator and its method table.
+    ufile = 'C:\XPIMROOT.BIN'
+    uoff = 20
+    call read_u32
+    if uok = 1 then
+        da = uv
+        ds = 32
+        dn = 'XPIMOBJ.BIN'
+        call dump_heap
+        if dok = 1 then
+            ufile = 'C:\XPIMOBJ.BIN'
+            uoff = 0
+            call read_u32
+            if uok = 1 then
+                if uv >= 1392508928 then
+                    if uv <= 1412937216 then
+                        da = uv
+                        ds = 64
+                        dn = 'XPIMVT.BIN'
+                        call dump_fixed
+                    endif
+                endif
+            endif
+        endif
+    endif
+
+    ; Read the current engineering command table, at most 1,024 rows of 52 bytes.
+    ufile = 'C:\XPSHELL.BIN'
+    uoff = 0
+    call read_u32
+    command_addr = uv
+    command_ok = uok
+    uoff = 4
+    call read_u16
+    if uok = 1 then
+        if command_ok = 1 then
+            if uv >= 1 then
+                if uv <= 1024 then
+                    da = command_addr
+                    ds = uv * 52
+                    dn = 'XPCMDS.BIN'
+                    call dump_heap
+                endif
+            endif
+        endif
+    endif
+
+    ; Read the prior response-output setting before any temporary change.
+    ufile = 'C:\XPBOOT.BIN'
+    uoff = 188
+    call read_u32
+    if uok = 1 then
+        bridge_addr = uv
+        da = bridge_addr
+        ds = 117
+        dn = 'XPBPRE.BIN'
+        call dump_heap
+        if dok = 1 then
+            ufile = 'C:\XPBPRE.BIN'
+            uoff = 116
+            call read_byte
+            if uok = 1 then
+                if uv >= 0 then
+                    if uv <= 1 then
+                        old_response = uv
+                        bridge_ok = 1
+                    endif
+                endif
+            endif
+        endif
+    endif
+endif
+
+; Only query Linux if both the output buffer and original setting were read.
+if ring_ok = 1 then
+    if bridge_ok = 1 then
+        sendln 'is_linux_boot'
+        linux_ready = result
+        tag = 'Linux readiness before queries'
+        value = linux_ready
+        call record_value
+        if linux_ready = 1 then
+            if old_response = 0 then
+                sendln 'lcmd_resp on'
+            endif
+            ; The complete reply marker is absent from the command text.
+            sendln 'lcmd "printf XPAN_SD_%s_REPLY EXECUTED"'
+            marker_result = result
+            sendln 'lcmd "/bin/uname -sr"'
+            uname_result = result
+            sendln 'lcmd "/bin/cat /proc/mounts"'
+            mounts_result = result
+            sendln 'lcmd "/bin/ls -ld /run/SD /run/SD/* /media/card"'
+            paths_result = result
+            ; Restore immediately; subsequent file/read failures cannot leave it enabled.
+            if old_response = 0 then
+                sendln 'lcmd_resp off'
+            endif
+            value = marker_result
+            tag = 'computed marker handler return (not execution status)'
+            call record_value
+            value = uname_result
+            tag = 'uname handler return (not execution status)'
+            call record_value
+            value = mounts_result
+            tag = 'mount query handler return (not execution status)'
+            call record_value
+            value = paths_result
+            tag = 'SD path query handler return (not execution status)'
+            call record_value
+            mpause 1000
+        endif
+        da = ring_addr
+        ds = ring_size
+        dn = 'XPRPOST.BIN'
+        call dump_heap
+        da = bridge_addr
+        ds = 117
+        dn = 'XPBPOST.BIN'
+        call dump_heap
+    endif
+endif
+tag = 'ring read available'
+value = ring_ok
+call record_value
+tag = 'bridge setting read available'
+value = bridge_ok
+call record_value
+
+; A later property snapshot allows comparison while the camera is operating.
+mpause 15000
+da = 1426611520
+ds = 192
+dn = 'XPPEND.BIN'
+call dump_fixed
+fileopen bf 'C:\XPBATCH.TXT' 1
+filewriteln bf 'XPAN batch finished'
+fileclose bf
+end
+
+:record_value
+int2str number value
+fileopen bf 'C:\XPBATCH.TXT' 1
+filewriteln bf tag
+filewriteln bf number
+fileclose bf
+return
+
+:dump_fixed
+path = 'C:\'
+strconcat path dn
+filesearch path
+dok = 0
+if result = 0 then
+    cmd = 'SYS_md '
+    int2str number da
+    strconcat cmd number
+    strconcat cmd ' -s '
+    int2str number ds
+    strconcat cmd number
+    strconcat cmd ' -f '
+    strconcat cmd path
+    sendln cmd
+    filesearch path
+    dok = result
+endif
+tag = dn
+value = dok
+call record_value
+return
+
+:dump_heap
+; Bound every pointer read to the observed RTOS heap window and 1 MiB maximum.
+dok = 0
+if da >= 1493172224 then
+    if ds >= 1 then
+        if ds <= 1048576 then
+            last = da + ds
+            if last > da then
+                if last <= 1509949440 then
+                    call dump_fixed
+                endif
+            endif
+        endif
+    endif
+endif
+return
+
+:read_byte
+uok = 0
+uv = 0
+fileopen uf ufile 0
+if uf >= 0 then
+    fileseek uf uoff 0
+    fileread uf 1 uc
+    if result = 0 then
+        str2code uv uc
+        uok = 1
+    endif
+    fileclose uf
+endif
+return
+
+:read_u16
+call read_byte
+ua = uv
+ua_ok = uok
+uoff = uoff + 1
+call read_byte
+uv = ua + uv * 256
+if ua_ok = 0 then
+    uok = 0
+endif
+return
+
+:read_u32
+call read_byte
+ua = uv
+ua_ok = uok
+uoff = uoff + 1
+call read_byte
+ub = uv
+ub_ok = uok
+uoff = uoff + 1
+call read_byte
+ucode = uv
+uc_ok = uok
+uoff = uoff + 1
+call read_byte
+uv = ua + ub * 256 + ucode * 65536 + uv * 16777216
+if ua_ok = 0 then
+    uok = 0
+endif
+if ub_ok = 0 then
+    uok = 0
+endif
+if uc_ok = 0 then
+    uok = 0
+endif
+return

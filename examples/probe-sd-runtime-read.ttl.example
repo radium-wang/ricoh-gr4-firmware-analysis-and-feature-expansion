@@ -1,0 +1,42 @@
+; GR IV 1.11.10.7 diagnostic. Read fixed, mapped RTOS addresses only.
+; Writes SD files: LXMEM.TXT, LXCONST.BIN, LXCODE.BIN, LXRAM.BIN.
+; Reads 30 bytes of known text, 16 bytes of aspect code, 128 bytes of log state.
+; Does not write RAM, enable logging, issue Linux commands, or update firmware.
+; Files must not already exist when this diagnostic is installed.
+
+filecreate logf 'C:\LXMEM.TXT'
+filewriteln logf 'runtime read probe started'
+fileclose logf
+
+mpause 10000
+
+sendln 'SYS_md 0x53EA38FC -s 30 -f C:\LXCONST.BIN'
+int2str reply result
+filesearch 'C:\LXCONST.BIN'
+int2str found result
+fileopen logf 'C:\LXMEM.TXT' 1
+filewriteln logf 'constant read handler result / file found:'
+filewriteln logf reply
+filewriteln logf found
+fileclose logf
+
+sendln 'SYS_md 0x5380D1EC -s 16 -f C:\LXCODE.BIN'
+int2str reply result
+filesearch 'C:\LXCODE.BIN'
+int2str found result
+fileopen logf 'C:\LXMEM.TXT' 1
+filewriteln logf 'aspect code read handler result / file found:'
+filewriteln logf reply
+filewriteln logf found
+fileclose logf
+
+sendln 'SYS_md 0x553A08E4 -s 128 -f C:\LXRAM.BIN'
+int2str reply result
+filesearch 'C:\LXRAM.BIN'
+int2str found result
+fileopen logf 'C:\LXMEM.TXT' 1
+filewriteln logf 'log state read handler result / file found:'
+filewriteln logf reply
+filewriteln logf found
+filewriteln logf 'runtime read probe finished'
+fileclose logf

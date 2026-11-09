@@ -1,0 +1,80 @@
+; GR IV 1.11.10.7 diagnostic. Requires two normal camera boots.
+; First boot: read-only Linux queries; create SD phase marker when ready.
+; Second boot: export available saved Linux logs to C:\linux01.log ... 05.
+; Refuses export if any destination already exists; never writes A:.
+; lcmd always returns 0, so only log contents can confirm Linux execution.
+
+filesearch 'C:\LXPHASE.TXT'
+phase = result
+if phase = 0 then
+    filecreate logf 'C:\LXRUN.TXT'
+    filewriteln logf 'query boot started'
+else
+    fileopen logf 'C:\LXRUN.TXT' 1
+    filewriteln logf 'log export boot started'
+endif
+fileclose logf
+
+mpause 10000
+sendln 'is_linux_boot'
+ready = result
+int2str reply ready
+fileopen logf 'C:\LXRUN.TXT' 1
+filewriteln logf 'Linux readiness:'
+filewriteln logf reply
+fileclose logf
+
+if phase = 0 then
+    if ready = 1 then
+        sendln 'lcmd "/bin/uname -sr"'
+        int2str reply result
+        fileopen logf 'C:\LXRUN.TXT' 1
+        filewriteln logf 'uname handler result (not execution status):'
+        filewriteln logf reply
+        fileclose logf
+
+        sendln 'lcmd "/bin/cat /proc/mounts"'
+        int2str reply result
+        fileopen logf 'C:\LXRUN.TXT' 1
+        filewriteln logf 'mount query handler result (not execution status):'
+        filewriteln logf reply
+        fileclose logf
+
+        filecreate phasef 'C:\LXPHASE.TXT'
+        filewriteln phasef 'queries dispatched; next boot exports saved logs'
+        fileclose phasef
+    else
+        fileopen logf 'C:\LXRUN.TXT' 1
+        filewriteln logf 'queries skipped: Linux not ready'
+        fileclose logf
+    endif
+else
+    occupied = 0
+    filesearch 'C:\linux01.log'
+    occupied = occupied + result
+    filesearch 'C:\linux02.log'
+    occupied = occupied + result
+    filesearch 'C:\linux03.log'
+    occupied = occupied + result
+    filesearch 'C:\linux04.log'
+    occupied = occupied + result
+    filesearch 'C:\linux05.log'
+    occupied = occupied + result
+
+    if occupied = 0 then
+        sendln 'llog_export'
+        int2str reply result
+        fileopen logf 'C:\LXRUN.TXT' 1
+        filewriteln logf 'log export handler result (check files):'
+        filewriteln logf reply
+        fileclose logf
+    else
+        fileopen logf 'C:\LXRUN.TXT' 1
+        filewriteln logf 'export skipped: destination already exists'
+        fileclose logf
+    endif
+endif
+
+fileopen logf 'C:\LXRUN.TXT' 1
+filewriteln logf 'this boot finished'
+fileclose logf

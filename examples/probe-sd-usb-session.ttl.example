@@ -1,0 +1,78 @@
+; GR IV 01.11.10.07, protocol 1801. No internal files/firmware/settings writes.
+; Each host sequence is consumed ONCE, regardless of native return value.
+; The only sendln after bootstrap is the pinned four-byte holder address.
+xpb_state = 1800
+xpb_go = 0
+xpb_done = 0
+xpb_return = -999
+xpb_input_code = 0
+xpb_token = 0
+xpb_tick = 0
+xpb_stop = 0
+str2code xpb_input_code #144#25#59#85
+if xpb_input_code != -1877394603 then
+    xpb_state = 1892
+    end
+endif
+fileopen xpb_log 'C:\XPSESSION.TXT' 1
+if xpb_log < 0 then
+    xpb_state = 1890
+    end
+endif
+filewriteln xpb_log 'USB session protocol 1801 started'
+fileclose xpb_log
+sendln 'SYS_buildinfo'
+if result != 0 then
+    xpb_state = 1891
+    goto xpb_finish
+endif
+xpb_state = 1801
+while xpb_tick < 9000
+    mpause 100
+    xpb_tick = xpb_tick + 1
+    if xpb_stop != 0 then
+        goto xpb_finish
+    endif
+    if xpb_go != xpb_done then
+        if xpb_go != xpb_done + 1 then
+            xpb_state = 1893
+            goto xpb_finish
+        endif
+        if xpb_go > 16 then
+            xpb_state = 1893
+            goto xpb_finish
+        endif
+        xpb_state = 1802
+        sendln #144#25#59#85
+        xpb_return = result
+        ; The host never changes go again until done matches and undo ends.
+        xpb_done = xpb_go
+        xpb_state = 1803
+    endif
+endwhile
+
+:xpb_finish
+; No callback calls after this point. Keep final globals until interpreter exit.
+if xpb_state != 1891 then
+    if xpb_state != 1893 then
+        xpb_state = 1804
+    endif
+endif
+fileopen xpb_log 'C:\XPSESSION.TXT' 1
+if xpb_log >= 0 then
+    int2str xpb_text xpb_token
+    filewriteln xpb_log 'token:'
+    filewriteln xpb_log xpb_text
+    int2str xpb_text xpb_state
+    filewriteln xpb_log 'state:'
+    filewriteln xpb_log xpb_text
+    int2str xpb_text xpb_done
+    filewriteln xpb_log 'completed request:'
+    filewriteln xpb_log xpb_text
+    int2str xpb_text xpb_return
+    filewriteln xpb_log 'last return:'
+    filewriteln xpb_log xpb_text
+    filewriteln xpb_log 'USB session finished'
+    fileclose xpb_log
+endif
+end

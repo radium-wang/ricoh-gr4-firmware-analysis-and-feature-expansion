@@ -1,0 +1,20 @@
+; GR IV 1.11.10.7 diagnostic. Writes only C:\XPSHELL.TXT on the SD card.
+; SYS_buildinfo reads build information. The other command does not exist.
+; Capture result immediately: later TTL file commands may replace it.
+
+filecreate logf 'C:\XPSHELL.TXT'
+filewriteln logf 'probe started'
+
+sendln 'SYS_buildinfo'
+int2str reply result
+filewriteln logf 'SYS_buildinfo result:'
+filewriteln logf reply
+filewriteln logf 'inputstr:'
+filewriteln logf inputstr
+
+sendln 'XPAN_NO_SUCH_COMMAND'
+int2str reply result
+filewriteln logf 'unknown command result:'
+filewriteln logf reply
+filewriteln logf 'probe finished'
+fileclose logf

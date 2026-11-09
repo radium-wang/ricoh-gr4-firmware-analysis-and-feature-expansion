@@ -1,0 +1,12 @@
+/* Unity build for the portable module. This has no native RTOS hooks/loader. */
+#include "xpan_memory.c"
+#include "xpan_core.c"
+#include "xpan_menu_bridge.c"
+#include "xpan_hook_txn.c"
+#include "xpan_capture.c"
+#include "xpan_selection.c"
+#include "xpan_preview_coordinates.c"
+#include "xpan_preview_route.c"
+#include "xpan_preview_recipe.c"
+#include "xpan_dng_bridge.c"
+#include "xpan_undo.c"
