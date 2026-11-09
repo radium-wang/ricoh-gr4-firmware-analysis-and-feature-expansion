@@ -27,6 +27,10 @@ Shutdown-image resource locations are listed below. Model names link to the exis
 
 `-` 表示尚未收到该机型的资源记录，后续随 PR 补充。GR IV 系列另有[中文指南](../gr4-family-shutdown-workflow.zh-CN.md)和[原始研究报告](../firmware-and-shutdown-image-research.md)。
 
+For GR IV HDF 1.11 with a 256GB exFAT card, see the optional [literal-write workaround and device evidence](gr4-hdf-111-exfat-literal.md). It uses separate probe, temporary, installation and recovery stages; it does not change the FAT32 workflow or establish compatibility for other bodies.
+
+GR IV HDF 1.11 搭配 256GB exFAT 卡的可选方法见[字面量写入流程与实测记录](gr4-hdf-111-exfat-literal.md)。小测试、临时写入、安装和恢复分别进行；原 FAT32 流程不变，其他机身不由此获得兼容性结论。
+
 ### Entry and preparation / 入口与准备
 
 Generate files on a computer, then follow the selected guide for copying them and enabling Script:

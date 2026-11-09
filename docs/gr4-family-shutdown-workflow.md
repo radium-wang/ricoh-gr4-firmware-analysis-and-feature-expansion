@@ -29,6 +29,8 @@ The following package-generator workflow is optional for users who want automati
 
 Use a FAT32 card, Python 3.10+ and Pillow (`python3 -m pip install Pillow`). Script must be enabled through the existing factory-menu procedure; see the main README. Keep adequate battery charge. Full installation from exFAT is not supported by this workflow.
 
+For the separate GR IV HDF 1.11 / 256GB exFAT experiment, use the opt-in [literal-write workflow](extensions/gr4-hdf-111-exfat-literal.md). Its staged transport avoids card-source `filecopy`; its image profile and qualification limits differ from this default generator.
+
 Identification and each target path were physically tested on three research bodies. Standard and HDF were 1.11; the exact Mono version was not recorded. **This new generated workflow, one-shot guard and automatic JPEG fitting are offline-tested, not an end-to-end camera-qualified release.** A successful desktop decode does not prove camera JPEG acceptance. Check the actual display after the full readback check.
 
 Use a dedicated backup/package per physical body. Model detection does not identify an individual camera or its firmware. Before starting on another body, archive all previous outputs and remove old GBMODEL.TXT, GBSTD.JPG, GBHDF.JPG, GBMONO.JPG, GBREAD.JPG, GBREST.JPG and GBARM.TXT from the working card only after saving them elsewhere. Never reuse one body's original on another body of the same model. The tools do not format, locate or write a card automatically.
